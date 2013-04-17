@@ -26,7 +26,7 @@ class TopicsController extends ForumAppController {
 	 * @access public
 	 * @var array
 	 */
-	public $components = array('Utility.AjaxHandler', 'RequestHandler');
+	public $components = array('Utility.AjaxHandler', 'RequestHandler', 'Security' => array('disabledFields' => array('option', 'items')));
 
 	/**
 	 * Pagination.
@@ -321,7 +321,7 @@ class TopicsController extends ForumAppController {
 
 		$this->Auth->allow('index', 'view', 'feed');
 		$this->AjaxHandler->handle('subscribe', 'unsubscribe');
-		$this->Security->disabledFields = array('option', 'items');
+		//$this->Security->disabledFields = array('option', 'items');
 		
 		$this->Topic->recursive = 1;
 		$this->Topic->Post->recursive = 1;

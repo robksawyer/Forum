@@ -26,7 +26,7 @@ class StationsController extends ForumAppController {
 	 * @access public
 	 * @var array
 	 */
-	public $components = array('Utility.AjaxHandler', 'RequestHandler');
+	public $components = array('Utility.AjaxHandler', 'RequestHandler', 'Security' => array('disabledFields' => array('items')));
 	
 	/**
 	 * Pagination.
@@ -314,7 +314,7 @@ class StationsController extends ForumAppController {
 
 		$this->Auth->allow('index', 'view', 'feed');
 		$this->AjaxHandler->handle('subscribe', 'unsubscribe');
-		$this->Security->disabledFields = array('items');
+		//$this->Security->disabledFields = array('items');
 		$this->set('menuTab', 'forums');
 	}
 
