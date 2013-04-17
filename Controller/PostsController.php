@@ -1,23 +1,24 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - PostsController
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppController', 'Forum.Controller');
 
-/**
- * @property Post $Post
- */
 class PostsController extends ForumAppController {
 
 	/**
 	 * Models.
 	 *
+	 * @access public
 	 * @var array
 	 */
-	public $uses = array('Forum.Post');
+	public $uses = array('Forum.Post', 'Forum.Profile');
 
 	/**
 	 * Redirect.
@@ -38,7 +39,8 @@ class PostsController extends ForumAppController {
 
 		$this->ForumToolbar->verifyAccess(array(
 			'exists' => $topic,
-			'status' => array($topic['Topic']['status'], $topic['Forum']['accessReply'])
+			'status' => $topic['Topic']['status'],
+			'permission' => $topic['Forum']['accessReply']
 		));
 
 		if ($this->request->data) {
@@ -47,21 +49,23 @@ class PostsController extends ForumAppController {
 			$this->request->data['Post']['user_id'] = $user_id;
 			$this->request->data['Post']['userIP'] = $this->request->clientIp();
 
-			if ($post_id = $this->Post->addPost($this->request->data['Post'])) {
+			if ($post_id = $this->Post->add($this->request->data['Post'])) {
+				if ($topic['Forum']['settingPostCount']) {
+					$this->Profile->increasePosts($user_id);
+				}
+
 				$this->ForumToolbar->updatePosts($post_id);
 				$this->ForumToolbar->goToPage($topic['Topic']['id'], $post_id);
 			}
-
-		} else if ($quote_id) {
-			if ($quote = $this->Post->getQuote($quote_id)) {
-				$this->request->data['Post']['content'] = sprintf('[quote="%s" date="%s"]%s[/quote]',
-					$quote['User'][$this->config['User']['fieldMap']['username']],
-					$quote['Post']['created'],
-					$quote['Post']['content']
-				) . PHP_EOL;
+		} else {
+			if ($quote_id) {
+				if ($quote = $this->Post->getQuote($quote_id)) {
+					$this->request->data['Post']['content'] = '[quote="' . $quote['User'][$this->config['userMap']['username']] . '" date="' . $quote['Post']['created'] . '"]' . $quote['Post']['content'] . '[/quote]';
+				}
 			}
 		}
 
+		$this->ForumToolbar->pageTitle(__d('forum', 'Post Reply'), $topic['Topic']['title']);
 		$this->set('topic', $topic);
 		$this->set('review', $this->Post->getTopicReview($topic['Topic']['id']));
 	}
@@ -73,6 +77,7 @@ class PostsController extends ForumAppController {
 	 */
 	public function edit($id) {
 		$post = $this->Post->getById($id);
+		$user_id = $this->Auth->user('id');
 
 		$this->ForumToolbar->verifyAccess(array(
 			'exists' => $post,
@@ -83,13 +88,14 @@ class PostsController extends ForumAppController {
 		if ($this->request->data) {
 			$this->Post->id = $id;
 
-			if ($this->Post->save($this->request->data, true, array('content'))) {
+			if ($this->Post->save($this->request->data, true, array('content', 'contentHtml'))) {
 				$this->ForumToolbar->goToPage($post['Post']['topic_id'], $id);
 			}
 		} else {
 			$this->request->data = $post;
 		}
 
+		$this->ForumToolbar->pageTitle(__d('forum', 'Edit Post'));
 		$this->set('post', $post);
 	}
 
@@ -117,6 +123,8 @@ class PostsController extends ForumAppController {
 	 * @param int $id
 	 */
 	public function report($id) {
+		$this->loadModel('Forum.Report');
+
 		$post = $this->Post->getById($id);
 		$user_id = $this->Auth->user('id');
 
@@ -124,28 +132,21 @@ class PostsController extends ForumAppController {
 			'exists' => $post
 		));
 
-		if ($this->request->is('post')) {
-			$data = $this->request->data['Report'];
+		if ($this->request->data) {
+			$this->request->data['Report']['user_id'] = $user_id;
+			$this->request->data['Report']['item_id'] = $id;
+			$this->request->data['Report']['itemType'] = Report::POST;
 
-			if ($this->AdminToolbar->reportItem($data['type'], $this->Post, $id, $data['comment'], $user_id)) {
+			if ($this->Report->save($this->request->data, true, array('item_id', 'itemType', 'user_id', 'comment'))) {
 				$this->Session->setFlash(__d('forum', 'You have successfully reported this post! A moderator will review this post and take the necessary action.'));
 				unset($this->request->data['Report']);
 			}
+		} else {
+			$this->request->data['Report']['post'] = $post['Post']['content'];
 		}
 
-		$this->request->data['Report']['post'] = $post['Post']['content'];
-
+		$this->ForumToolbar->pageTitle(__d('forum', 'Report Post'));
 		$this->set('post', $post);
-	}
-
-	/**
-	 * Preview the Decoda markup.
-	 */
-	public function preview() {
-		$input = isset($this->request->data['input']) ? $this->request->data['input'] : '';
-
-		$this->set('input', $input);
-		$this->layout = false;
 	}
 
 	/**
@@ -154,12 +155,7 @@ class PostsController extends ForumAppController {
 	public function beforeFilter() {
 		parent::beforeFilter();
 
-		if ($this->request->is('ajax')) {
-			$this->Security->validatePost = false;
-			$this->Security->csrfCheck = false;
-		}
-
-		$this->Auth->allow('index', 'preview');
+		$this->Auth->allow('index');
 
 		$this->set('menuTab', 'forums');
 	}

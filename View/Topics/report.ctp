@@ -1,29 +1,25 @@
 <?php
 
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+
 if (!empty($topic['Forum']['Parent']['slug'])) {
-	$this->Breadcrumb->add($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
+	$this->Html->addCrumb($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
-$this->Breadcrumb->add($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug']));
-$this->Breadcrumb->add(__d('forum', 'Report Topic'), array('controller' => 'topics', 'action' => 'report', $topic['Topic']['slug']));  ?>
+$this->Html->addCrumb($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
+$this->Html->addCrumb($topic['Topic']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Topic']['slug'])); ?>
 
 <div class="title">
 	<h2><?php echo __d('forum', 'Report Topic'); ?></h2>
 </div>
 
-<p>
-	<?php printf(__d('forum', 'Are you sure you want to report the topic %s? If so, please add a comment as to why you are reporting it, 255 max characters.'),
-		'<strong>' . $this->Html->link($topic['Topic']['title'], array('action' => 'view', $topic['Topic']['slug'])) . '</strong>'); ?>
-</p>
+<p><?php printf(__d('forum', 'Are you sure you want to report the topic %s? If so, please add a comment as to why you are reporting it, 255 max characters.'), '<strong>' . $this->Html->link($topic['Topic']['title'], array('action' => 'view', $topic['Topic']['slug'])) . '</strong>'); ?></p>
 
 <?php echo $this->Form->create('Report'); ?>
 
 <div class="container">
 	<div class="containerContent">
-		<?php
-		echo $this->Form->input('type', array('options' => $this->Utility->enum('Admin.ItemReport', 'type')));
-		echo $this->Form->input('comment', array('type' => 'textarea', 'label' => __d('forum', 'Comment'))); ?>
+		<?php echo $this->Form->input('comment', array('type' => 'textarea', 'label' => __d('forum', 'Comment'))); ?>
 	</div>
 </div>
 

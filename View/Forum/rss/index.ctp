@@ -1,7 +1,7 @@
 <?php
 
 $this->set('channel', array(
-	'title' => $settings['name'] . ' - ' . __d('forum', 'Latest Topics'),
+	'title' => $settings['site_name'] . ' - ' . __d('forum', 'Latest Topics'),
 	'link' => array('plugin' => 'forum', 'controller' => 'home', 'action' => 'index'),
 	'description' => __d('forum', 'The latest 10 topics out of all forums'),
 	'language' => 'en-us'
@@ -15,8 +15,8 @@ if ($items) {
 			'title' => $item['Topic']['title'],
 			'link' => $link,
 			'guid' => array('url' => $link, 'isPermaLink' => 'true'),
-			'description' => $this->Decoda->parse($item['FirstPost']['content'], array(), false),
-			'author' => $item['User'][$userFields['username']],
+			'description' => $item['FirstPost']['contentHtml'],
+			'author' => $item['User'][$config['userMap']['username']],
 			'pubDate' => $item['Topic']['created']
 		));
 	}

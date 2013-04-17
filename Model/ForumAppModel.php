@@ -1,84 +1,112 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * ForumAppModel
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('CakeSession', 'Model/Datasource');
-
-use Decoda\Decoda;
 
 class ForumAppModel extends AppModel {
 
 	/**
 	 * Toggleable constants.
 	 */
-	const YES = 1;
-	const NO = 0;
+	const BOOL_YES = 1;
+	const BOOL_NO = 0;
 
 	/**
 	 * Status constants.
 	 */
-	const OPEN = 1;
-	const CLOSED = 0;
+	const STATUS_OPEN = 1;
+	const STATUS_CLOSED = 0;
 
 	/**
 	 * Table prefix.
 	 *
+	 * @access public
 	 * @var string
 	 */
-	public $tablePrefix = FORUM_PREFIX;
+	public $tablePrefix = 'forum_';
 
 	/**
 	 * Database config.
 	 *
+	 * @access public
 	 * @var string
 	 */
-	public $useDbConfig = FORUM_DATABASE;
+	public $useDbConfig = 'default';
 
 	/**
 	 * Cache queries.
 	 *
-	 * @var bool
+	 * @access public
+	 * @var boolean
 	 */
 	public $cacheQueries = true;
 
 	/**
+	 * Behaviors.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $actsAs = array(
+		'Containable',
+		'Utility.Cacheable' => array(
+			'cacheConfig' => 'forum',
+			'appendKey' => false,
+			'expires' => '+1 minute',
+			'events' => array(
+				'onCreate' => false
+			)
+		)
+	);
+
+	/**
 	 * No recursion.
 	 *
+	 * @access public
 	 * @var int
 	 */
 	public $recursive = -1;
 
 	/**
-	 * Behaviors.
-	 *
-	 * @var array
-	 */
-	public $actsAs = array(
-		'Containable',
-		'Utility.Enumerable',
-		'Utility.Cacheable' => array(
-			'cacheConfig' => 'forum'
-		)
-	);
-
-	/**
 	 * Global enum.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $enum = array(
 		'status' => array(
-			self::OPEN => 'OPEN',
-			self::CLOSED => 'CLOSED'
+			self::STATUS_CLOSED => 'CLOSED',
+			self::STATUS_OPEN => 'OPEN'
 		)
 	);
 
 	/**
+	 * Plugin configuration.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $config = array();
+
+	/**
+	 * Database forum settings.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $settings = array();
+
+	/**
 	 * Session instance.
 	 *
+	 * @access public
 	 * @var CakeSession
 	 */
 	public $Session;
@@ -86,6 +114,7 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Allow the model to interact with the session.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @param string $table
 	 * @param string $ds
@@ -94,11 +123,41 @@ class ForumAppModel extends AppModel {
 		parent::__construct($id, $table, $ds);
 
 		$this->Session = new CakeSession();
+		$this->config = Configure::read('Forum');
+		$this->settings = Configure::read('Forum.settings');
+	}
+
+	/**
+	 * Get the users highest access level.
+	 *
+	 * @access public
+	 * @return int
+	 */
+	public function access() {
+		return $this->Session->read('Forum.access');
+	}
+
+	/**
+	 * Return an array of access levels or IDs.
+	 *
+	 * @access public
+	 * @param string $field
+	 * @return array
+	 */
+	public function accessLevels($field = 'id') {
+		$levels = array(0) + (array) $this->Session->read('Forum.accessLevels');
+
+		if ($field === 'id') {
+			$levels = array_keys($levels);
+		}
+
+		return $levels;
 	}
 
 	/**
 	 * Return all records.
 	 *
+	 * @access public
 	 * @return array
 	 */
 	public function getAll() {
@@ -111,6 +170,7 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Return all records as a list.
 	 *
+	 * @access public
 	 * @return array
 	 */
 	public function getList() {
@@ -123,13 +183,14 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Return a record based on ID.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @return array
 	 */
 	public function getById($id) {
 		return $this->find('first', array(
-			'conditions' => array($this->alias . '.id' => $id),
-			'contain' => array_keys($this->belongsTo),
+			'conditions' => array('id' => $id),
+			'contain' => false,
 			'cache' => array($this->alias . '::' . __FUNCTION__, $id)
 		));
 	}
@@ -137,13 +198,14 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Return a record based on slug.
 	 *
+	 * @access public
 	 * @param string $slug
 	 * @return array
 	 */
 	public function getBySlug($slug) {
 		return $this->find('first', array(
-			'conditions' => array($this->alias . '.slug' => $slug),
-			'contain' => array_keys($this->belongsTo),
+			'conditions' => array('slug' => $slug),
+			'contain' => false,
 			'cache' => array($this->alias . '::' . __FUNCTION__, $slug)
 		));
 	}
@@ -151,6 +213,7 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Get a count of all rows.
 	 *
+	 * @access public
 	 * @return int
 	 */
 	public function getTotal() {
@@ -163,11 +226,27 @@ class ForumAppModel extends AppModel {
 	}
 
 	/**
+	 * Adds locale functions to errors.
+	 *
+	 * @access public
+	 * @param string $field
+	 * @param mixed $value
+	 * @param mixed $param
+	 * @return boolean
+	 */
+	public function invalidate($field, $value = true, $param = '') {
+		parent::invalidate($field, sprintf(__d('forum', $value), $param));
+
+		return false;
+	}
+
+	/**
 	 * Update a row with certain fields.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @param array $data
-	 * @return bool
+	 * @return boolean
 	 */
 	public function update($id, $data) {
 		$this->id = $id;
@@ -178,20 +257,42 @@ class ForumAppModel extends AppModel {
 	/**
 	 * Validate the Decoda markup.
 	 *
+	 * @access public
 	 * @param string $model
-	 * @param string $field
-	 * @return bool
+	 * @return boolean
 	 */
-	public function validateDecoda($model, $field = 'content') {
-		if (!isset($this->data[$model][$field])) {
-			return true;
-		}
+	public function validateDecoda($model) {
+		$censored = array_map('trim', explode(',', $this->settings['censored_words']));
+		$locale = $this->config['decodaLocales'][Configure::read('Config.language')];
 
-		$decoda = new Decoda($this->data[$model][$field]);
-		$decoda->defaults()->parse();
+		$decoda = new Decoda($this->data[$model]['content']);
+		$decoda->setXhtml(true)->setLocale($locale);
+
+		// Filters
+		$decoda->addFilter(new BlockFilter());
+		$decoda->addFilter(new CodeFilter());
+		$decoda->addFilter(new DefaultFilter());
+		$decoda->addFilter(new EmailFilter());
+		$decoda->addFilter(new ImageFilter());
+		$decoda->addFilter(new ListFilter());
+		$decoda->addFilter(new QuoteFilter());
+		$decoda->addFilter(new TextFilter());
+		$decoda->addFilter(new UrlFilter());
+
+		// Hooks
+		$censorHook = new CensorHook();
+		$censorHook->blacklist($censored);
+
+		$decoda->addHook($censorHook);
+		$decoda->addHook(new ClickableHook());
+
+		// Parse
+		$parsed = $decoda->parse();
 		$errors = $decoda->getErrors();
 
 		if (!$errors) {
+			$this->data[$model]['contentHtml'] = $parsed;
+
 			return true;
 		}
 
@@ -208,15 +309,15 @@ class ForumAppModel extends AppModel {
 		}
 
 		if ($nesting) {
-			return $this->invalid('content', 'The following tags have been nested in the wrong order: %s', implode(', ', $nesting));
+			return $this->invalidate('content', 'The following tags have been nested in the wrong order: %s', implode(', ', $nesting));
 		}
 
 		if ($closing) {
-			return $this->invalid('content', 'The following tags have no closing tag: %s', implode(', ', $closing));
+			return $this->invalidate('content', 'The following tags have no closing tag: %s', implode(', ', $closing));
 		}
 
 		if ($scope) {
-			return $this->invalid('content', 'The following tags can not be placed within a specific tag: %s', implode(', ', $scope));
+			return $this->invalidate('content', 'The following tags can not be placed within a specific tag: %s', implode(', ', $scope));
 		}
 
 		return true;

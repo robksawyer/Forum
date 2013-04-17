@@ -1,30 +1,24 @@
-/**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
- */
 
 var Forum = {
 
 	/**
 	 * Open or close child forums.
 	 *
-	 * @param {Element} self
+	 * @param {object} self
 	 * @param {int} id
 	 */
 	toggleForums: function(self, id) {
-		var node = new Element(self),
-			target = $('forums-'+ id);
+		var node = $(self),
+			target = $('#forums-'+ id);
 
-		if (target.style.display === 'none') {
-			node.set('html', '-');
-			node.getParent().removeClass('closed');
-			target.show();
-
+		if (target.is(':hidden')) {
+			node.html('-');
+			node.parent().removeClass('closed');
+			target.slideDown();
 		} else {
-			node.set('html', '+');
-			node.getParent().addClass('closed');
-			target.hide();
+			node.html('+');
+			node.parent().addClass('closed');
+			target.slideUp();
 		}
 
 		return false;
@@ -33,34 +27,34 @@ var Forum = {
 	/**
 	 * Toggle all checkboxes.
 	 *
-	 * @param {Element} self
+	 * @param {object} self
 	 */
 	toggleCheckboxes: function(self) {
-		var node = new Element(self),
-			form = node.getParent('form');
+		var node = $(self),
+			form = node.parents('form');
 
-		form.getElements('input[type="checkbox"]').set('checked', self.checked);
+		form.find(':checkbox').attr('checked', self.checked);
 	},
 
 	/**
 	 * AJAX call to subscribe to a topic. Use the button's href attribute as the AJAX URL.
 	 *
-	 * @param {Element} self
+	 * @param {object} node
 	 */
-	subscribe: function(self) {
-		var node = new Element(self);
+	subscribe: function(node) {
+		node = $(node);
 
 		if (node.hasClass('disabled')) {
 			return false;
 		}
 
-		new Request.JSON({
-			method: 'POST',
-			url: node.get('href'),
-			onSuccess: function(response) {
-				$$('.subscription').set('text', response.data).addClass('disabled');
+		$.ajax({
+			url: node.attr('href'),
+			type: 'post',
+			success: function(response) {
+				$('.subscription').text(response.data).addClass('disabled');
 			}
-		}).send();
+		});
 
 		return false;
 	},
@@ -68,10 +62,10 @@ var Forum = {
 	/**
 	 * Unsubscribe from a topic.
 	 *
-	 * @param {Element} self
+	 * @param {object} node
 	 */
-	unsubscribe: function(self) {
-		return Forum.subscribe(self);
+	unsubscribe: function(node) {
+		return Forum.subscribe(node);
 	}
 
-};
+}

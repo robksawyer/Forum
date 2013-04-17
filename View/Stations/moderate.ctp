@@ -1,11 +1,12 @@
 <?php
 
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+
 if (!empty($forum['Parent']['slug'])) {
-	$this->Breadcrumb->add($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
+	$this->Html->addCrumb($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug']));
-$this->Breadcrumb->add(__d('forum', 'Moderate'), array('action' => 'moderate', $forum['Forum']['slug'])); ?>
+$this->Html->addCrumb($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug'])); ?>
 
 <div class="controls float-right">
 	<?php echo $this->Html->link(__d('forum', 'Return to Forum'), array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug']), array('class' => 'button')); ?>
@@ -24,10 +25,10 @@ $this->Breadcrumb->add(__d('forum', 'Moderate'), array('action' => 'moderate', $
 		<table class="table topics">
 			<thead>
 				<tr>
-					<th><input type="checkbox" onclick="Forum.toggleCheckboxes(this);"></th>
+					<th><input type="checkbox" onclick="Forum.toggleCheckboxes(this);" /></th>
 					<th><?php echo $this->Paginator->sort('Topic.title', __d('forum', 'Topic')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.status', __d('forum', 'Status')); ?></th>
-					<th><?php echo $this->Paginator->sort('User.' . $userFields['username'], __d('forum', 'Author')); ?></th>
+					<th><?php echo $this->Paginator->sort('User.' . $config['userMap']['username'], __d('forum', 'Author')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.created', __d('forum', 'Created')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.post_count', __d('forum', 'Posts')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.view_count', __d('forum', 'Views')); ?></th>
@@ -47,7 +48,7 @@ $this->Breadcrumb->add(__d('forum', 'Moderate'), array('action' => 'moderate', $
 			} else { ?>
 
 				<tr>
-					<td colspan="8" class="empty"><?php echo __d('forum', 'There are no topics within this forum'); ?></td>
+					<td colspan="8" class="empty"><?php echo __d('forum', 'There are no topics within this forum.'); ?></td>
 				</tr>
 
 			<?php } ?>

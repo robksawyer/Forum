@@ -1,11 +1,12 @@
 <?php
 
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+
 if (!empty($forum['Parent']['slug'])) {
-	$this->Breadcrumb->add($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
+	$this->Html->addCrumb($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug']));
-$this->Breadcrumb->add($pageTitle, array('controller' => 'topics', 'action' => 'add', $forum['Forum']['slug'])); ?>
+$this->Html->addCrumb($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug'])); ?>
 
 <div class="title">
 	<h2><?php echo $pageTitle; ?></h2>
@@ -19,9 +20,9 @@ $this->Breadcrumb->add($pageTitle, array('controller' => 'topics', 'action' => '
 		echo $this->Form->input('title', array('label' => __d('forum', 'Title')));
 		echo $this->Form->input('forum_id', array('options' => $forums, 'empty' => '-- ' . __d('forum', 'Select a Forum') . ' --', 'label' => __d('forum', 'Forum')));
 
-		if ($this->Forum->isMod($forum['Forum']['id'])) {
-			echo $this->Form->input('status', array('options' => $this->Utility->enum('Forum.Topic', 'status'), 'label' => __d('forum', 'Status')));
-			echo $this->Form->input('type', array('options' => $this->Utility->enum('Forum.Topic', 'type'), 'label' => __d('forum', 'Type')));
+		if ($this->Common->hasAccess(AccessLevel::SUPER, $forum['Forum']['id'])) {
+			echo $this->Form->input('status', array('options' => $this->Common->options('topicStatus'), 'label' => __d('forum', 'Status')));
+			echo $this->Form->input('type', array('options' => $this->Common->options('topicTypes'), 'label' => __d('forum', 'Type')));
 		}
 
 		if ($type === 'poll') {
@@ -40,12 +41,13 @@ $this->Breadcrumb->add($pageTitle, array('controller' => 'topics', 'action' => '
 		}
 
 		echo $this->Form->input('content', array(
+			'after' => '<span class="inputText">[b], [u], [i], [s], [img], [url], [email], [color], [size], [left], [center], [right], [justify], [list], [olist], [li], [quote], [code]</span>',
 			'label' => __d('forum', 'Content'),
 			'type' => 'textarea',
 			'rows' => 15
 		));
 
-		echo $this->element('decoda', array('id' => 'TopicContent')); ?>
+		echo $this->element('markitup', array('textarea' => 'TopicContent')); ?>
 	</div>
 </div>
 

@@ -1,21 +1,24 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - Forum
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
 
 class Forum extends ForumAppModel {
-
+	
 	/**
 	 * Behaviors.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $actsAs = array(
-		'Tree',
 		'Utility.Sluggable' => array(
 			'length' => 100
 		)
@@ -24,13 +27,14 @@ class Forum extends ForumAppModel {
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
 		'Parent' => array(
 			'className' => 'Forum.Forum',
-			'foreignKey' => 'parent_id',
-			'fields' => array('Parent.id', 'Parent.title', 'Parent.slug', 'Parent.parent_id')
+			'foreignKey' => 'forum_id',
+			'fields' => array('Parent.id', 'Parent.title', 'Parent.slug', 'Parent.forum_id')
 		),
 		'LastTopic' => array(
 			'className' => 'Forum.Topic',
@@ -41,31 +45,35 @@ class Forum extends ForumAppModel {
 			'foreignKey' => 'lastPost_id'
 		),
 		'LastUser' => array(
-			'className' => USER_MODEL,
+			'className' => FORUM_USER,
 			'foreignKey' => 'lastUser_id'
 		),
-		'RequestObject' => array(
-			'className' => 'Admin.RequestObject',
-			'foreignKey' => 'aro_id'
+		'AccessLevel' => array(
+			'className' => 'Forum.AccessLevel'
 		)
 	);
 
 	/**
 	 * Has many.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $hasMany = array(
 		'Topic' => array(
 			'className' => 'Forum.Topic',
-			'limit' => 25,
-			'order' => array('Topic.created' => 'DESC'),
-			'dependent' => false,
+			'dependent' => false
 		),
 		'Children' => array(
 			'className' => 'Forum.Forum',
-			'foreignKey' => 'parent_id',
+			'foreignKey' => 'forum_id',
 			'order' => array('Children.orderNo' => 'ASC'),
+			'dependent' => false
+		),
+		'SubForum' => array(
+			'className' => 'Forum.Forum',
+			'foreignKey' => 'forum_id',
+			'order' => array('SubForum.orderNo' => 'ASC'),
 			'dependent' => false
 		),
 		'Moderator' => array(
@@ -83,42 +91,45 @@ class Forum extends ForumAppModel {
 	/**
 	 * Validate.
 	 *
+	 * @access public
 	 * @var array
 	 */
-	public $validations = array(
-		'default' => array(
-			'title' => array(
-				'rule' => 'notEmpty'
+	public $validate = array(
+		'title' => 'notEmpty',
+		'description' => 'notEmpty',
+		'orderNo' => array(
+			'numeric' => array(
+				'rule' => 'numeric',
+				'message' => 'Please supply a number'
 			),
-			'status' =>  array(
-				'rule' => 'notEmpty'
-			),
-			'orderNo' => array(
-				'numeric' => array(
-					'rule' => 'numeric'
-				),
-				'notEmpty' => array(
-					'rule' => 'notEmpty'
-				)
+			'notEmpty' => array(
+				'rule' => 'notEmpty',
+				'message' => 'This setting is required'
 			)
 		)
 	);
 
 	/**
-	 * Admin settings.
+	 * Enum.
 	 *
+	 * @access public
 	 * @var array
 	 */
-	public $admin = array(
-		'iconClass' => 'icon-list-alt',
-		'paginate' => array(
-			'order' => array('Forum.lft' => 'ASC')
+	public $enum = array(
+		'settingPostCount' => array(
+			self::BOOL_NO => 'NO',
+			self::BOOL_YES => 'YES'
+		),
+		'settingAutoLock' => array(
+			self::BOOL_NO => 'NO',
+			self::BOOL_YES => 'YES'
 		)
 	);
 
 	/**
 	 * Update all forums by going up the parent chain.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @param array $data
 	 * @return void
@@ -129,41 +140,34 @@ class Forum extends ForumAppModel {
 
 		$forum = $this->getById($id);
 
-		if ($forum['Forum']['parent_id'] != null) {
-			$this->chainUpdate($forum['Forum']['parent_id'], $data);
+		if ($forum['Forum']['forum_id'] != 0) {
+			$this->chainUpdate($forum['Forum']['forum_id'], $data);
 		}
-	}
-
-	/**
-	 * Close a topic.
-	 *
-	 * @param int $id
-	 * @return bool
-	 */
-	public function close($id) {
-		$this->id = $id;
-
-		return $this->saveField('status', self::CLOSED);
 	}
 
 	/**
 	 * Get a forum.
 	 *
+	 * @access public
 	 * @param string $slug
 	 * @return array
 	 */
 	public function getBySlug($slug) {
-		$forum = $this->find('first', array(
+		$access = $this->access();
+		$accessLevels = $this->accessLevels();
+
+		return $this->find('first', array(
 			'conditions' => array(
-				'Forum.accessRead' => self::YES,
+				'Forum.access_level_id' => $accessLevels,
+				'Forum.accessRead <=' => $access,
 				'Forum.slug' => $slug
 			),
 			'contain' => array(
 				'Parent',
-				'Children' => array(
+				'SubForum' => array(
 					'conditions' => array(
-						'Children.status' => self::OPEN,
-						'Children.accessRead' => self::YES
+						'SubForum.access_level_id' => $accessLevels,
+						'SubForum.accessRead <=' => $access
 					),
 					'LastTopic', 'LastPost', 'LastUser'
 				),
@@ -171,187 +175,232 @@ class Forum extends ForumAppModel {
 			),
 			'cache' => array(__METHOD__, $slug)
 		));
-
-		return $this->filterByRole($forum);
-	}
-
-	/**
-	 * Get the tree and reorganize into a hierarchy.
-	 * Code borrowed from TreeBehavior::generateTreeList().
-	 *
-	 * @param bool $group
-	 * @return array
-	 */
-	public function getHierarchy($group = true) {
-		return $this->cache(array(__METHOD__, $this->Session->read('Forum.roles'), $group), function($self) use ($group) {
-			$keyPath = '{n}.Forum.id';
-			$valuePath = array('%s%s', '{n}.tree_prefix', '{n}.Forum.title');
-			$results = $self->filterByRole($self->find('all', array(
-				'conditions' => array(
-					'Forum.status' => Forum::OPEN,
-					'Forum.accessRead' => Forum::YES,
-					'OR' => array(
-						'Forum.parent_id' => null,
-						'Parent.status' => Forum::OPEN
-					)
-				),
-				'contain' => array('Parent'),
-				'order' => array('Forum.lft' => 'ASC')
-			)));
-
-			// Reorganize tree
-			$stack = array();
-
-			foreach ($results as $i => $result) {
-				$count = count($stack);
-
-				while ($stack && ($stack[$count - 1] < $result['Forum']['rght'])) {
-					array_pop($stack);
-					$count--;
-				}
-
-				$results[$i]['tree_prefix'] = str_repeat(' -- ', $count);
-				$stack[] = $result['Forum']['rght'];
-			}
-
-			if (!$results) {
-				return array();
-			}
-
-			$tree = Hash::combine($results, $keyPath, $valuePath);
-
-			if (!$group) {
-				return $tree;
-			}
-
-			// Reorganize the tree so top level forums are an optgroup
-			$hierarchy = array();
-			$parent = null;
-
-			foreach ($tree as $key => $value) {
-				// Child
-				if (strpos($value, ' -- ') === 0) {
-					$hierarchy[$parent][$key] = substr($value, 4);
-
-				// Parent
-				} else {
-					$hierarchy[$value] = array();
-					$parent = $value;
-				}
-			}
-
-			return $hierarchy;
-		});
 	}
 
 	/**
 	 * Get the list of forums for the board index.
 	 *
+	 * @access public
+	 * @return array
+	 */
+	public function getAdminIndex() {
+		return $this->find('all', array(
+			'order' => array('Forum.orderNo' => 'ASC'),
+			'conditions' => array('Forum.forum_id' => 0),
+			'contain' => array('Children' => array('SubForum'))
+		));
+	}
+
+	/**
+	 * Get a grouped hierarchy.
+	 *
+	 * @access public
+	 * @param string $type
+	 * @param int $exclude
+	 * @return array
+	 */
+	public function getGroupedHierarchy($type = null, $exclude = null) {
+		$conditions = array();
+
+		if ($type) {
+			$conditions = array(
+				'Forum.status' => self::STATUS_OPEN,
+				'Forum.' . $type . ' <=' => $this->access(),
+				'Forum.access_level_id' => $this->accessLevels()
+			);
+		}
+
+		if (is_numeric($exclude)) {
+			$conditions['Forum.id !='] = $exclude;
+		}
+
+		$forums = $this->find('all', array(
+			'fields' => array('Forum.id', 'Forum.title', 'Forum.forum_id', 'Forum.orderNo'),
+			'conditions' => $conditions,
+			'order' => array('Forum.orderNo' => 'ASC'),
+			'contain' => false
+		));
+
+		$root = array();
+		$categories = array();
+		$hierarchy = array();
+
+		foreach ($forums as $forum) {
+			if ($forum['Forum']['forum_id'] == 0) {
+				$root[] = $forum['Forum'];
+			} else {
+				$categories[$forum['Forum']['forum_id']][$forum['Forum']['orderNo']] = $forum['Forum'];
+			}
+		}
+
+		foreach ($root as $forum) {
+			if (isset($categories[$forum['id']])) {
+				$hierarchy[$forum['title']] = $this->_buildOptions($categories, $forum);
+			}
+		}
+
+		return $hierarchy;
+	}
+
+	/**
+	 * Get the hierarchy.
+	 *
+	 * @access public
+	 * @param boolean $drill
+	 * @param int $exclude
+	 * @return array
+	 */
+	public function getHierarchy($drill = false, $exclude = null) {
+		$conditions = array();
+
+		if (is_numeric($exclude)) {
+			$conditions = array(
+				'Forum.id !=' => $exclude,
+				'Forum.forum_id !=' => $exclude
+			);
+		}
+
+		$forums = $this->find('all', array(
+			'conditions' => $conditions,
+			'fields' => array('Forum.id', 'Forum.title', 'Forum.forum_id'),
+			'order' => array('Forum.orderNo' => 'ASC'),
+			'contain' => false
+		));
+
+		$root = array();
+		$categories = array();
+		$hierarchy = array();
+
+		foreach ($forums as $forum) {
+			if ($forum['Forum']['forum_id'] == 0) {
+				$root[] = $forum['Forum'];
+			} else {
+				$categories[$forum['Forum']['forum_id']][] = $forum['Forum'];
+			}
+		}
+
+		foreach ($root as $forum) {
+			$hierarchy[$forum['id']] = $forum['title'];
+			$hierarchy += $this->_buildOptions($categories, $forum, $drill, 1);
+		}
+
+		return $hierarchy;
+	}
+
+	/**
+	 * Get the list of forums for the board index.
+	 *
+	 * @access public
 	 * @return array
 	 */
 	public function getIndex() {
-		$forums = $this->find('all', array(
+		$access = $this->access();
+		$accessLevels = $this->accessLevels();
+
+		return $this->find('all', array(
 			'order' => array('Forum.orderNo' => 'ASC'),
 			'conditions' => array(
-				'Forum.parent_id' => null,
-				'Forum.status' => self::OPEN,
-				'Forum.accessRead' => self::YES
+				'Forum.forum_id' => 0,
+				'Forum.status' => self::STATUS_OPEN,
+				'Forum.accessRead <=' => $access,
+				'Forum.access_level_id' => $accessLevels
 			),
 			'contain' => array(
 				'Children' => array(
 					'conditions' => array(
-						'Children.status' => self::OPEN,
-						'Children.accessRead' => self::YES
+						'Children.accessRead <=' => $access,
+						'Children.access_level_id' => $accessLevels
 					),
-					'Children' => array(
-						'fields' => array('Children.id', 'Children.aro_id', 'Children.title', 'Children.slug'),
+					'SubForum' => array(
+						'fields' => array('SubForum.id', 'SubForum.title', 'SubForum.slug'),
 						'conditions' => array(
-							'Children.status' => self::OPEN,
-							'Children.accessRead' => self::YES
+							'SubForum.accessRead <=' => $access,
+							'SubForum.access_level_id' => $accessLevels
 						)
 					),
 					'LastTopic', 'LastPost', 'LastUser'
 				)
 			),
-			'cache' => array(__METHOD__, $this->Session->read('Forum.roles'))
+			'cache' => __METHOD__
 		));
-
-		return $this->filterByRole($forums);
-	}
-
-	/**
-	 * Filter down the forums if the user doesn't have the specific ARO (role) access.
-	 *
-	 * @param array $forums
-	 * @return array
-	 */
-	public function filterByRole($forums) {
-		$roles = (array) $this->Session->read('Forum.roles');
-		$isAdmin = $this->Session->read('Forum.isAdmin');
-		$isSuper = $this->Session->read('Forum.isSuper');
-		$isMulti = true;
-
-		if (!isset($forums[0])) {
-			$forums = array($forums);
-			$isMulti = false;
-		}
-
-		foreach ($forums as $i => $forum) {
-			$aro_id = null;
-
-			if (isset($forum['Forum']['aro_id'])) {
-				$aro_id = $forum['Forum']['aro_id'];
-			} else if (isset($forum['aro_id'])) {
-				$aro_id = $forum['aro_id'];
-			}
-
-			// Filter down children
-			if (!empty($forum['Children'])) {
-				$forums[$i]['Children'] = $this->filterByRole($forum['Children']);
-			}
-
-			// Admins and super mods get full access
-			if ($isAdmin || $isSuper) {
-				continue;
-			}
-
-			// Remove the forum if not enough role access
-			if ($aro_id && !in_array($aro_id, $roles)) {
-				unset($forums[$i]);
-			}
-		}
-
-		if (!$isMulti) {
-			return $forums[0];
-		}
-
-		return $forums;
 	}
 
 	/**
 	 * Move all categories to a new forum.
 	 *
+	 * @access public
 	 * @param int $start_id
 	 * @param int $moved_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function moveAll($start_id, $moved_id) {
 		return $this->updateAll(
-			array('Forum.parent_id' => $moved_id),
-			array('Forum.parent_id' => $start_id)
+			array('Forum.forum_id' => $moved_id),
+			array('Forum.forum_id' => $start_id)
 		);
 	}
 
 	/**
-	 * Open a topic.
+	 * Update the order of the forums.
 	 *
-	 * @param int $id
-	 * @return bool
+	 * @access public
+	 * @param array $data
+	 * @return boolean
 	 */
-	public function open($id) {
-		$this->id = $id;
+	public function updateOrder($data) {
+		if (isset($data['_Token'])) {
+			unset($data['_Token']);
+		}
 
-		return $this->saveField('status', self::OPEN);
+		if ($data) {
+			foreach ($data as $model => $fields) {
+				foreach ($fields as $field) {
+					$order = $field['orderNo'];
+
+					if (!is_numeric($order)) {
+						$order = 0;
+					}
+
+					$this->id = $field['id'];
+					$this->save(array('orderNo' => $order), false, array('orderNo'));
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Build the list of select options.
+	 *
+	 * @access protected
+	 * @param array $categories
+	 * @param array $forum
+	 * @param boolean $drill
+	 * @param int $depth
+	 * @return array
+	 */
+	protected function _buildOptions($categories, $forum, $drill = true, $depth = 0) {
+		$options = array();
+
+		if (isset($categories[$forum['id']])) {
+			$children = $categories[$forum['id']];
+			ksort($children);
+
+			foreach ($children as $child) {
+				$options[$child['id']] = str_repeat('&nbsp;', ($depth * 4)) . $child['title'];
+
+				if (isset($categories[$child['id']]) && $drill) {
+					$babies = $this->_buildOptions($categories, $child, $drill, ($depth + 1));
+
+					if ($babies) {
+						$options = $options + $babies;
+					}
+				}
+			}
+		}
+
+		return $options;
 	}
 
 }

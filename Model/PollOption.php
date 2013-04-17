@@ -1,8 +1,11 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - PollOption
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
@@ -10,15 +13,9 @@ App::uses('ForumAppModel', 'Forum.Model');
 class PollOption extends ForumAppModel {
 
 	/**
-	 * Display field.
-	 *
-	 * @var string
-	 */
-	public $displayField = 'option';
-
-	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
@@ -28,20 +25,9 @@ class PollOption extends ForumAppModel {
 	);
 
 	/**
-	 * Has many.
-	 *
-	 * @var array
-	 */
-	public $hasMany = array(
-		'PollVote' => array(
-			'className' => 'Forum.PollVote',
-			'limit' => 100
-		)
-	);
-
-	/**
 	 * Behaviors.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $actsAs = array(
@@ -54,28 +40,14 @@ class PollOption extends ForumAppModel {
 	);
 
 	/**
-	 * Validation.
+	 * Add a vote for a poll.
 	 *
-	 * @var array
+	 * @access public
+	 * @param int $id
+	 * @return boolean
 	 */
-	public $validations = array(
-		'default' => array(
-			'poll_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'option' => array(
-				'rule' => 'notEmpty'
-			)
-		)
-	);
-
-	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-list'
-	);
+	public function addVote($id) {
+		return $this->query('UPDATE `' . $this->tablePrefix . 'poll_options` AS `PollOption` SET `PollOption`.`vote_count` = `PollOption`.`vote_count` + 1 WHERE `PollOption`.`id` = ' . (int) $id);
+	}
 
 }

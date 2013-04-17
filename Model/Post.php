@@ -1,17 +1,24 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - Post
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
+App::import('Vendor', 'Forum.Decoda', array(
+	'file' => 'decoda/Decoda.php'
+));
 
 class Post extends ForumAppModel {
 
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
@@ -24,64 +31,42 @@ class Post extends ForumAppModel {
 			'counterCache' => true
 		),
 		'User' => array(
-			'className' => USER_MODEL,
-			'counterCache' => true
+			'className' => FORUM_USER
 		)
 	);
 
 	/**
 	 * Validation.
 	 *
+	 * @access public
 	 * @var array
 	 */
-	public $validations = array(
-		'default' => array(
-			'forum_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'topic_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'user_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'content' => array(
-				'rule' => 'notEmpty'
-			)
-		)
-	);
-
-	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-comments'
+	public $validate = array(
+		'content' => 'notEmpty'
 	);
 
 	/**
 	 * Validate and add a post.
 	 *
+	 * @access public
 	 * @param array $data
-	 * @return bool|int
+	 * @return boolean|int
 	 */
-	public function addPost($data) {
+	public function add($data) {
 		$this->set($data);
 
 		if ($this->validates()) {
-			$settings = Configure::read('Forum.settings');
 			$isAdmin = $this->Session->read('Forum.isAdmin');
 
-			if (($secondsLeft = $this->checkFlooding($settings['postFloodInterval'])) > 0 && !$isAdmin) {
-				return $this->invalid('content', 'You must wait %s more second(s) till you can post a reply', $secondsLeft);
+			if (($secondsLeft = $this->checkFlooding($this->settings['post_flood_interval'])) > 0 && !$isAdmin) {
+				return $this->invalidate('content', 'You must wait %s more second(s) till you can post a reply', $secondsLeft);
 
-			} else if ($this->checkHourly($settings['postsPerHour']) && !$isAdmin) {
-				return $this->invalid('content', 'You are only allowed to post %s time(s) per hour', $settings['postsPerHour']);
+			} else if ($this->checkHourly($this->settings['posts_per_hour']) && !$isAdmin) {
+				return $this->invalidate('content', 'You are only allowed to post %s time(s) per hour', $this->settings['posts_per_hour']);
 
 			} else {
 				$this->create();
-				$this->save($data, false, array('topic_id', 'forum_id', 'user_id', 'userIP', 'content'));
+				$this->save($data, false, array('topic_id', 'forum_id', 'user_id', 'userIP', 'content', 'contentHtml'));
 
 				$data['post_id'] = $this->id;
 
@@ -106,6 +91,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Save the first post with a topic.
 	 *
+	 * @access public
 	 * @param array $data
 	 * @return int
 	 */
@@ -126,8 +112,9 @@ class Post extends ForumAppModel {
 	/**
 	 * Check the posting flood interval.
 	 *
+	 * @access public
 	 * @param int $interval
-	 * @return bool
+	 * @return boolean
 	 */
 	public function checkFlooding($interval) {
 		if ($posts = $this->Session->read('Forum.posts')) {
@@ -144,8 +131,9 @@ class Post extends ForumAppModel {
 	/**
 	 * Check the hourly posting.
 	 *
+	 * @access public
 	 * @param int $max
-	 * @return bool
+	 * @return boolean
 	 */
 	public function checkHourly($max) {
 		$pastHour = strtotime('-1 hour');
@@ -170,6 +158,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return a post based on ID.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @return array
 	 */
@@ -187,6 +176,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return a list of IDs within a topic.
 	 *
+	 * @access public
 	 * @param int $topic_id
 	 * @return array
 	 */
@@ -200,6 +190,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return the latest posts by a user.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $limit
 	 * @return array
@@ -218,6 +209,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return the latest posts by a user, grouped by the topic ID.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $limit
 	 * @return array
@@ -239,6 +231,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return a post for quoting.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @return array
 	 */
@@ -252,6 +245,7 @@ class Post extends ForumAppModel {
 	/**
 	 * Return the latest posts in a topic.
 	 *
+	 * @access public
 	 * @param int $topic_id
 	 * @param int $limit
 	 * @return array
@@ -266,47 +260,18 @@ class Post extends ForumAppModel {
 	}
 
 	/**
-	 * Move all posts to a new forum.
-	 *
-	 * @param int $start_id
-	 * @param int $moved_id
-	 * @return bool
-	 */
-	public function moveAll($start_id, $moved_id) {
-		return $this->updateAll(
-			array('Post.forum_id' => $moved_id),
-			array('Post.forum_id' => $start_id)
-		);
-	}
-
-	/**
 	 * Parse the HTML version.
 	 *
+	 * @access public
 	 * @param array $options
-	 * @return bool
+	 * @return boolean
 	 */
-	public function beforeSave($options = array()) {
-		return $this->validateDecoda('Post');
-	}
+	public function beforeSave($options) {
+		if (isset($this->data['Post']['content'])) {
+			return $this->validateDecoda('Post');
+		}
 
-	/**
-	 * Null associations.
-	 */
-	public function afterDelete() {
-		$this->Forum->updateAll(
-			array('Forum.lastPost_id' => null),
-			array('Forum.lastPost_id' => $this->id)
-		);
-
-		$this->Topic->updateAll(
-			array('Topic.firstPost_id' => null),
-			array('Topic.firstPost_id' => $this->id)
-		);
-
-		$this->Topic->updateAll(
-			array('Topic.lastPost_id' => null),
-			array('Topic.lastPost_id' => $this->id)
-		);
+		return true;
 	}
 
 }

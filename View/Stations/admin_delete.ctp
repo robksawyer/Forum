@@ -1,40 +1,32 @@
 <?php
-$this->Admin->setBreadcrumbs($model, $result, $this->action);
 
-$id = $result[$model->alias][$model->primaryKey];
-$displayField = $this->Admin->getDisplayField($model, $result); ?>
+$this->Html->addCrumb(__d('forum', 'Administration'), array('controller' => 'forum', 'action' => 'index'));
+$this->Html->addCrumb(__d('forum', 'Forums'), array('controller' => 'stations', 'action' => 'index'));
+$this->Html->addCrumb(__d('forum', 'Delete Forum'), $this->here); ?>
 
-<h2><?php echo $this->Admin->outputIconTitle($model, __d('admin', 'Delete %s', $model->singularName)); ?></h2>
+<div class="title">
+	<h2><?php echo __d('forum', 'Delete Forum'); ?></h2>
+</div>
 
-<p><?php echo __d('admin', 'Are you sure you want to delete %s?', $this->Html->link($displayField, array('action' => 'read', $id, 'model' => $model->urlSlug))); ?></p>
+<?php if (empty($subForums)) { ?>
 
-<?php echo $this->element('Admin.crud/dependencies'); ?>
+<p><?php echo __d('forum', 'You may not delete this forum, you must have at least one forum active.'); ?></p>
 
-<p>Please provide a destination for all children topics and forums.</p>
+<?php } else { ?>
 
-<?php // Confirm delete form
-echo $this->Form->create($model->alias, array(
-	'url' => array('plugin' => 'admin', 'controller' => 'crud', 'model' => $model->urlSlug, 'action' => 'delete', $id),
-	'class' => 'form-horizontal'
-));
+<p><?php printf(__d('forum', 'Before you delete the %s forum, please select which forum all topics and sub-forums should be moved to.'), '<strong>' . $forum['Forum']['title'] . '</strong>'); ?></p>
 
-echo $this->element('Admin.input', array(
-	'field' => 'move_topics',
-	'data' => array(
-		'type' => 'list',
-		'title' => __d('forum', 'Move Topics To'),
-		'null' => false
-	)
-));
+<?php echo $this->Form->create('Forum'); ?>
 
-echo $this->element('Admin.input', array(
-	'field' => 'move_forums',
-	'data' => array(
-		'type' => 'list',
-		'title' => __d('forum', 'Move Forums To'),
-		'null' => false
-	)
-));
+<div class="container">
+	<div class="containerContent">
+		<?php
+		echo $this->Form->input('move_topics', array('options' => $topicForums, 'label' => __d('forum', 'Move Topics To')));
+		echo $this->Form->input('move_forums', array('options' => $subForums, 'label' => __d('forum', 'Move Sub-forums To'))); ?>
+	</div>
+</div>
 
-echo $this->element('Admin.form_actions');
-echo $this->Form->end(); ?>
+<?php
+echo $this->Form->submit(__d('forum', 'Delete'), array('class' => 'button'));
+echo $this->Form->end();
+}

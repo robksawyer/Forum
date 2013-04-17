@@ -1,111 +1,155 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - UpgradeShell
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
-App::uses('BaseUpgradeShell', 'Utility.Console/Command');
-App::uses('Admin', 'Admin.Lib');
+Configure::write('debug', 2);
+Configure::write('Cache.disable', true);
 
-class UpgradeShell extends BaseUpgradeShell {
+App::uses('ConnectionManager', 'Model');
+
+define('FORUM_PLUGIN', dirname(dirname(dirname(__FILE__))) . '/');
+define('FORUM_SCHEMA', FORUM_PLUGIN . 'Config/Schema/Upgrade/');
+
+class UpgradeShell extends Shell {
 
 	/**
-	 * Trigger upgrade.
+	 * Plugin configuration.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $config = array();
+
+	/**
+	 * Array of completed version upgrades.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $complete = array();
+
+	/**
+	 * Upgrade configuration.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $upgrade = array(
+		'prefix' => 'forum_',
+		'database' => 'default'
+	);
+
+	/**
+	 * Available upgrade versions.
+	 *
+	 * @access public
+	 * @var array
+	 */
+	public $versions = array(
+		'2.2' => 'Subscriptions'
+	);
+
+	/**
+	 * Execute upgrader!
+	 *
+	 * @access public
+	 * @return void
 	 */
 	public function main() {
-		if (!CakePlugin::loaded('Admin')) {
-			$this->err('<error>Admin plugin is not installed, aborting!</error>');
-			return;
-		}
+		$this->config = Configure::read('Forum');
+		$this->upgrade = parse_ini_file(FORUM_PLUGIN  . 'Config/install.ini', true);
 
-		$this->setSteps(array(
-			'Check Database Configuration' => 'checkDbConfig',
-			'Set Table Prefix' => 'checkTablePrefix',
-			'Set Users Table' => 'checkUsersTable',
-			'Upgrade Version' => 'versions'
-		))
-		->setVersions(array(
-			'4.0.0' => 'Admin + Utility Plugin Migration'
-		))
-		->setDbConfig(FORUM_DATABASE)
-		->setTablePrefix(FORUM_PREFIX);
-
-		$this->out('Plugin: Forum v' . Configure::read('Forum.version'));
+		// Begin
+		$this->out();
+		$this->out('Plugin: Forum');
+		$this->out('Version: ' . $this->config['version']);
 		$this->out('Copyright: Miles Johnson, 2010-' . date('Y'));
 		$this->out('Help: http://milesj.me/code/cakephp/forum');
+		$this->out('Shell: Upgrade');
+		$this->out();
+		$this->out('This shell will upgrade versions and manage any database changes.');
+		$this->out('Please do not skip versions, upgrade sequentially!');
 
-		parent::main();
+		$this->upgrade();
 	}
 
 	/**
-	 * Upgrade to 4.0.0.
+	 * List out all the available upgrade options.
 	 */
-	public function to_400() {
-		$this->out('<warning>This upgrade will delete the following tables after migration: settings, access, access_levels, profiles, reported.</warning>');
-		$answer = strtoupper($this->in('<question>All data will be migrated to the new admin system, are you sure you want to continue?</question>', array('Y', 'N')));
+	public function upgrade() {
+		$this->hr(1);
+		$this->out('Available versions:');
+		$this->out();
 
-		if ($answer === 'N') {
-			exit();
-		}
+		$versions = array();
 
-		// Migrate old reports to the new admin system
-		$this->out('<info>Migrating reports...</info>');
-
-		$ItemReport = ClassRegistry::init('Admin.ItemReport');
-
-		$Reported = new AppModel(null, 'reported', $this->dbConfig);
-		$Reported->alias = 'Reported';
-		$Reported->tablePrefix = $this->tablePrefix;
-
-		foreach ($Reported->find('all') as $report) {
-			switch ($report['Reported']['itemType']) {
-				case 1: $model = 'Forum.Topic'; break;
-				case 2: $model = 'Forum.Post'; break;
-				case 3: $model = $this->usersModel; break;
-			}
-
-			$ItemReport->reportItem(array(
-				'reporter_id' => $report['Reported']['user_id'],
-				'model' => $model,
-				'foreign_key' => $report['Reported']['item_id'],
-				'item' => $report['Reported']['item_id'],
-				'reason' => $report['Reported']['comment'],
-				'created' => $report['Reported']['created']
-			));
-		}
-
-		// Migrate profile data to users table
-		$this->out('<info>Migrating user profiles...</info>');
-
-		$User = ClassRegistry::init($this->usersModel);
-		$fieldMap = Configure::read('User.fieldMap');
-
-		$Profile = new AppModel(null, 'profiles', $this->dbConfig);
-		$Profile->alias = 'Profile';
-		$Profile->tablePrefix = $this->tablePrefix;
-
-		foreach ($Profile->find('all') as $prof) {
-			$query = array();
-
-			foreach (array('signature', 'locale', 'timezone', 'totalPosts', 'totalTopics', 'lastLogin') as $field) {
-				if ($key = $fieldMap[$field]) {
-					$query[$key] = $prof['Profile'][$field];
+		if ($this->versions) {
+			foreach ($this->versions as $version => $title) {
+				if (!in_array($version, $this->complete)) {
+					$this->out(sprintf('[%s] %s', $version, $title));
+					$versions[] = $version;
 				}
 			}
-
-			if (!$query) {
-				continue;
-			}
-
-			$User->id = $prof['Profile']['user_id'];
-			$User->save(array_filter($query), false);
 		}
 
-		// Delete tables handled by parent shell
-		$this->out('<info>Deleting old tables...</info>');
+		$this->out('[E]xit');
+		$this->out();
 
-		return true;
+		$versions[] = 'E';
+		$version = strtoupper($this->in('Which version do you want to upgrade to?'));
+
+		if ($version === 'E') {
+			exit(0);
+		} else {
+			$this->hr(1);
+			$this->out(sprintf('Upgrading to %s...', $version));
+
+			$this->_querySql($version);
+			$this->complete[] = $version;
+
+			$this->out('Complete...');
+			$this->finalize();
+		}
+	}
+
+	/**
+	 * Output complete message and render versions again.
+	 */
+	public function finalize() {
+		$this->out('You can now upgrade to another version or close the shell.');
+		$this->upgrade();
+	}
+
+	/**
+	 * Execute the queries for the specific version SQL.
+	 *
+	 * @access protected
+	 * @param string $version
+	 * @return void
+	 */
+	protected function _querySql($version) {
+		sleep(1);
+
+		$db = ConnectionManager::getDataSource($this->upgrade['database']);
+		$schema = FORUM_SCHEMA . $version . '.sql';
+
+		$sql = file_get_contents($schema);
+		$sql = String::insert($sql, array('prefix' => $this->upgrade['prefix']), array('before' => '{', 'after' => '}'));
+		$sql = preg_replace('!/\*[^*]*\*+([^/][^*]*\*+)*/!', '', $sql);
+
+		foreach (explode(';', $sql) as $query) {
+			$query = trim($query);
+
+			if ($query !== '') {
+				$db->execute($query);
+			}
+		}
 	}
 
 }

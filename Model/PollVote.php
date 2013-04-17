@@ -1,17 +1,21 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - PollVote
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
 
 class PollVote extends ForumAppModel {
-
+	
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
@@ -19,61 +23,23 @@ class PollVote extends ForumAppModel {
 			'className' => 'Forum.Poll'
 		),
 		'PollOption' => array(
-			'className' => 'Forum.PollOption',
-			'counterCache' => true
+			'className' => 'Forum.PollOption'
 		),
 		'User' => array(
-			'className' => USER_MODEL
+			'className' => FORUM_USER
 		)
-	);
-
-	/**
-	 * Validation.
-	 *
-	 * @var array
-	 */
-	public $validations = array(
-		'default' => array(
-			'poll_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'poll_option_id' => array(
-				'rule' => 'notEmpty'
-			),
-			'user_id' => array(
-				'notEmpty' => array(
-					'rule' => 'notEmpty'
-				),
-				'checkHasVoted' => array(
-					'rule' => 'checkHasVoted',
-					'message' => 'This user has already voted'
-				)
-			)
-		)
-	);
-
-	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-list-ol'
 	);
 
 	/**
 	 * Add a voter for a poll.
 	 *
+	 * @access public
 	 * @param int $poll_id
 	 * @param int $option_id
 	 * @param int $user_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function addVoter($poll_id, $option_id, $user_id) {
-		if ($this->hasVoted($user_id, $poll_id)) {
-			return true;
-		}
-
 		$data = array(
 			'poll_id' => $poll_id,
 			'poll_option_id' => $option_id,
@@ -86,17 +52,9 @@ class PollVote extends ForumAppModel {
 	}
 
 	/**
-	 * Validate a user hasn't voted.
-	 *
-	 * @return bool
-	 */
-	public function checkHasVoted() {
-		return !$this->hasVoted($this->data[$this->alias]['user_id'], $this->data[$this->alias]['poll_id']);
-	}
-
-	/**
 	 * Check to see if a person voted.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $poll_id
 	 * @return mixed

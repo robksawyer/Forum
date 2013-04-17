@@ -1,12 +1,12 @@
 <?php
 
-$this->OpenGraph->description($forum['Forum']['description']);
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
 
 if (!empty($forum['Parent']['slug'])) {
-	$this->Breadcrumb->add($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
+	$this->Html->addCrumb($forum['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug'])); ?>
+$this->Html->addCrumb($forum['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $forum['Forum']['slug'])); ?>
 
 <div class="title">
 	<h2><?php echo h($forum['Forum']['title']); ?></h2>
@@ -16,7 +16,7 @@ $this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations
 	<?php } ?>
 </div>
 
-<?php if ($forum['Children']) { ?>
+<?php if ($forum['SubForum']) { ?>
 
 	<div class="container">
 		<div class="containerHeader">
@@ -35,7 +35,7 @@ $this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations
 					</tr>
 				</thead>
 				<tbody>
-					<?php foreach ($forum['Children'] as $counter => $subForum) {
+					<?php foreach ($forum['SubForum'] as $counter => $subForum) {
 						echo $this->element('tiles/forum_row', array(
 							'forum' => $subForum,
 							'counter' => $counter
@@ -49,7 +49,7 @@ $this->Breadcrumb->add($forum['Forum']['title'], array('controller' => 'stations
 <?php }
 
 // Cant post in top level
-if ($forum['Forum']['parent_id']) {
+if ($forum['Forum']['forum_id'] > 0) {
 	echo $this->element('tiles/forum_controls', array(
 		'forum' => $forum
 	)); ?>
@@ -62,7 +62,7 @@ if ($forum['Forum']['parent_id']) {
 				<thead>
 					<tr>
 						<th colspan="2"><?php echo $this->Paginator->sort('Topic.title', __d('forum', 'Topic')); ?></th>
-						<th><?php echo $this->Paginator->sort('User.' . $userFields['username'], __d('forum', 'Author')); ?></th>
+						<th><?php echo $this->Paginator->sort('User.' . $config['userMap']['username'], __d('forum', 'Author')); ?></th>
 						<th><?php echo $this->Paginator->sort('Topic.created', __d('forum', 'Created')); ?></th>
 						<th><?php echo $this->Paginator->sort('Topic.post_count', __d('forum', 'Posts')); ?></th>
 						<th><?php echo $this->Paginator->sort('Topic.view_count', __d('forum', 'Views')); ?></th>
@@ -100,7 +100,7 @@ if ($forum['Forum']['parent_id']) {
 				} else { ?>
 
 					<tr>
-						<td colspan="7" class="empty"><?php echo __d('forum', 'There are no topics within this forum'); ?></td>
+						<td colspan="7" class="empty"><?php echo __d('forum', 'There are no topics within this forum.'); ?></td>
 					</tr>
 
 				<?php } ?>
@@ -121,7 +121,7 @@ if ($forum['Forum']['parent_id']) {
 
 		if ($forum['Moderator']) {
 			foreach ($forum['Moderator'] as $mod) {
-				$moderators[] = $this->Html->link($mod['User'][$userFields['username']], $this->Forum->profileUrl($mod['User']));
+				$moderators[] = $this->Html->link($mod['User'][$config['userMap']['username']], array('controller' => 'users', 'action' => 'profile', $mod['User']['id']));
 			}
 		} ?>
 
@@ -132,26 +132,26 @@ if ($forum['Forum']['parent_id']) {
 					<td><strong><?php echo $forum['Forum']['topic_count']; ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Increases Post Count'); ?>: </td>
-					<td><strong><?php echo __d('forum', 'Yes'); ?></strong></td>
+					<td><strong><?php echo $forum['Forum']['settingPostCount'] ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Can Read Topics'); ?>: </td>
-					<td><strong><?php echo $this->Forum->hasAccess('Forum.Topic', 'read', $forum['Forum']['accessRead']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
+					<td><strong><?php echo $this->Common->hasAccess($forum['Forum']['accessRead']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Can Create Topics'); ?>: </td>
-					<td><strong><?php echo $this->Forum->hasAccess('Forum.Topic', 'create', $forum['Forum']['accessPost']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
+					<td><strong><?php echo $this->Common->hasAccess($forum['Forum']['accessPost']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 				</tr>
 				<tr>
 					<td class="align-right"><?php echo __d('forum', 'Total Posts'); ?>: </td>
 					<td><strong><?php echo $forum['Forum']['post_count']; ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Auto-Lock Topics'); ?>: </td>
-					<td><strong><?php echo $forum['Forum']['autoLock'] ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
+					<td><strong><?php echo $forum['Forum']['settingAutoLock'] ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Can Reply'); ?>: </td>
-					<td><strong><?php echo $this->Forum->hasAccess('Forum.Post', 'create', $forum['Forum']['accessReply']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
+					<td><strong><?php echo $this->Common->hasAccess($forum['Forum']['accessReply']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 
 					<td class="align-right"><?php echo __d('forum', 'Can Create Polls'); ?>: </td>
-					<td><strong><?php echo $this->Forum->hasAccess('Forum.Poll', 'create', $forum['Forum']['accessPoll']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
+					<td><strong><?php echo $this->Common->hasAccess($forum['Forum']['accessPoll']) ? __d('forum', 'Yes') : __d('forum', 'No'); ?></strong></td>
 				</tr>
 				<?php if ($moderators) { ?>
 					<tr>

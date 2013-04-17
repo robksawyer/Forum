@@ -1,8 +1,11 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - SubscriptionShell
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 Configure::write('debug', 2);
@@ -15,27 +18,28 @@ class SubscriptionShell extends Shell {
 	/**
 	 * Models.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $uses = array('Forum.Subscription');
 
 	/**
-	 * The past timeframe threshold to look for topics.
-	 *
-	 * @var string
-	 */
-	public $timeframe;
-
-	/**
 	 * Execute!
 	 */
 	public function main() {
+		$this->config = Configure::read('Forum');
+		$this->settings = ClassRegistry::init('Forum.Setting')->getSettings();
 		$this->timeframe = '-' . (isset($this->params['timeframe']) ? $this->params['timeframe'] : '24 hours');
 
 		// Begin
-		$this->out('Plugin: Forum v' . Configure::read('Forum.version'));
+		$this->out();
+		$this->out('Plugin: Forum');
+		$this->out('Version: ' . $this->config['version']);
 		$this->out('Copyright: Miles Johnson, 2010-' . date('Y'));
 		$this->out('Help: http://milesj.me/code/cakephp/forum');
+		$this->out('Shell: Subscription');
+		$this->out();
+		$this->out('Queries the database for the latest activity within subscribed topics and forums, then notifies the subscribers with the updates.');
 		$this->hr(1);
 
 		// Gather and organize subscriptions
@@ -49,7 +53,7 @@ class SubscriptionShell extends Shell {
 		));
 
 		if (!$results) {
-			$this->out('<error>No subscriptions to send...</error>');
+			$this->out('No subscriptions to send...');
 			return;
 		}
 
@@ -79,40 +83,37 @@ class SubscriptionShell extends Shell {
 		$topics = $this->getTopics($forumIds, $topicIds);
 
 		if (!$topics) {
-			$this->out('<info>No new activity...</info>');
+			$this->out('No new activity...');
 			return;
 		}
 
-		$settings = Configure::read('Forum.settings');
-		$userMap = Configure::read('User.fieldMap');
-
 		$email = new CakeEmail();
-		$email->subject(sprintf(__d('forum', '%s [Subscriptions]'), $settings['name']));
-		$email->from($settings['email']);
-		$email->replyTo($settings['email']);
-		$email->emailFormat('text');
 		//$email->transport('Debug');
+		$email->subject(sprintf(__d('forum', '%s [Subscriptions]'), $this->settings['site_name']));
+		$email->from($this->settings['site_email']);
+		$email->replyTo($this->settings['site_email']);
+		$email->emailFormat('text');
 
 		// Loop over each user and send one email
-		foreach ($users as $user) {
-			$email->to($user[$userMap['email']]);
+		foreach ($users as $user_id => $user) {
+			$email->to($user[$this->config['userMap']['email']]);
 
 			if ($message = $this->formatEmail($user, $topics)) {
-				$email->send($message);
-				$this->out(sprintf('... %s', $user[$userMap['username']]));
+				$this->out(sprintf('... %s', $user[$this->config['userMap']['username']]));
 
 				$count++;
 			}
 		}
 
 		$this->hr(1);
-		$this->out(sprintf('<info>Notified %d user(s)</info>', $count));
+		$this->out(sprintf('Notified %d user(s)', $count));
 	}
 
 	/**
 	 * Return all topics with new activity found within specific forums or by a specific ID.
 	 * Organize the topics array by ID before returning.
 	 *
+	 * @access public
 	 * @param array $forumIds
 	 * @param array $topicIds
 	 * @return array
@@ -164,18 +165,18 @@ class SubscriptionShell extends Shell {
 	/**
 	 * Format the email by looping over all topics.
 	 *
+	 * @access public
 	 * @param array $user
 	 * @param array $topics
 	 * @return string
 	 */
 	public function formatEmail(array $user, array $topics) {
-		$settings = Configure::read('Forum.settings');
 		$divider = "\n\n------------------------------\n\n";
 		$count = 0;
-		$url = trim($settings['url'], '/');
+		$url = trim($this->settings['site_main_url'], '/');
 
-		$message  = sprintf(__d('forum', 'Hello %s,'), $user[Configure::read('User.fieldMap.username')]) . "\n\n";
-		$message .= sprintf(__d('forum', 'You have asked to be notified for any new activity within %s. Below you will find an update on all your forum subscriptions. The last subscription update was sent on %s.'), $settings['name'], date('m/d/Y h:ia', strtotime($this->timeframe))) . "\n\n";
+		$message  = sprintf(__d('forum', 'Hello %s,'), $user[$this->config['userMap']['username']]) . "\n\n";
+		$message .= sprintf(__d('forum', 'You have asked to be notified for any new activity within %s. Below you will find an update on all your forum subscriptions. The last subscription update was sent on %s.'), $this->settings['site_name'], date('m/d/Y h:ia', strtotime($this->timeframe))) . "\n\n";
 		$message .= __d('forum', 'You may unsubscribe from a forum or topic by clicking the "Unsubscribe" button found within the respective forum or topic.');
 
 		// Show forum topics first
@@ -230,7 +231,7 @@ class SubscriptionShell extends Shell {
 		}
 
 		$message .= $divider;
-		$message .= $settings['name'] . "\n";
+		$message .= $this->settings['site_name'] . "\n";
 		$message .= $url;
 
 		return $message;

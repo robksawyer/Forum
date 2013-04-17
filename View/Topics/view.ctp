@@ -1,22 +1,18 @@
 <?php
 
-$this->OpenGraph->description($this->Text->truncate($this->Decoda->strip($topic['FirstPost']['content']), 150));
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
 
 if (!empty($topic['Forum']['Parent']['slug'])) {
-	$this->Breadcrumb->add($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
+	$this->Html->addCrumb($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
-$this->Breadcrumb->add($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug']));
-
-$canReply = ($user && $this->Forum->hasAccess('Forum.Post', 'create', array($topic['Topic']['status'], $topic['Forum']['accessReply']))); ?>
+$this->Html->addCrumb($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug'])); ?>
 
 <div class="title">
 	<h2>
 		<?php if ($topic['Topic']['type'] > Topic::NORMAL) {
-			echo '<span>' . $this->Utility->enum('Forum.Topic', 'type', $topic['Topic']['type']) . ':</span> ';
-
-		} else if ($topic['Topic']['status'] == Topic::CLOSED) {
+			echo '<span>' . $this->Common->options('topicTypes', $topic['Topic']['type']) . ':</span> ';
+		} else if ($topic['Topic']['status'] == Topic::STATUS_CLOSED) {
 			echo '<span>' . __d('forum', 'Closed') . ':</span> ';
 		}
 
@@ -45,11 +41,9 @@ if (!empty($topic['Poll']['id'])) { ?>
 					foreach ($topic['Poll']['PollOption'] as $counter => $option) { ?>
 
 					<tr<?php if ($counter % 2) echo ' class="altRow"'; ?>>
-						<?php if ($user) { ?>
-							<td class="icon">
-								<input type="radio" name="data[Poll][option]" value="<?php echo $option['id']; ?>"<?php if ($counter == 0) echo ' checked="checked"'; ?>>
-							</td>
-						<?php } ?>
+						<td class="icon">
+							<input type="radio" name="data[Poll][option]" value="<?php echo $option['id']; ?>"<?php if ($counter == 0) echo ' checked="checked"'; ?> />
+						</td>
 						<td colspan="2">
 							<?php echo $option['option']; ?>
 						</td>
@@ -61,12 +55,12 @@ if (!empty($topic['Poll']['id'])) { ?>
 						<td colspan="3" class="align-center">
 							<?php if ($user) {
 								if (!empty($topic['Poll']['expires']) && $topic['Poll']['expires'] <= date('Y-m-d H:i:s')) {
-									echo __d('forum', 'Voting on this poll has been closed');
+									__d('forum', 'Voting on this poll has been closed');
 								} else {
 									echo $this->Form->submit(__d('forum', 'Vote'), array('div' => false, 'class' => 'button'));
 								}
 							} else {
-								echo __d('forum', 'Please login to vote!');
+								__d('forum', 'Please login to vote!');
 							} ?>
 						</td>
 					</tr>
@@ -82,7 +76,7 @@ if (!empty($topic['Poll']['id'])) { ?>
 							<div class="pollBar" style="width: <?php echo $option['percentage']; ?>%"></div>
 						</td>
 						<td>
-							<?php echo sprintf(__d('forum', '%d votes'), number_format($option['poll_vote_count'])); ?> (<?php echo $option['percentage']; ?>%)
+							<?php echo sprintf(__d('forum', '%d votes'), number_format($option['vote_count'])); ?> (<?php echo $option['percentage']; ?>%)
 
 							<?php if ($topic['Poll']['hasVoted'] == $option['id']) {
 								echo '<em>(' . __d('forum', 'Your Vote') . ')</em>';
@@ -111,25 +105,24 @@ if (!empty($topic['Poll']['id'])) { ?>
 
 				<tr class="altRow" id="post-<?php echo $post['Post']['id']; ?>">
 					<td class="align-right dark">
-						<?php echo $this->Time->niceShort($post['Post']['created'], $this->Forum->timezone()); ?>
+						<?php echo $this->Time->niceShort($post['Post']['created'], $this->Common->timezone()); ?>
 					</td>
 					<td class="align-right dark">
 						<?php if ($user) {
 							$links = array();
-							$isMod = $this->Forum->isMod($topic['Forum']['id']);
 
 							if ($topic['Topic']['firstPost_id'] == $post['Post']['id']) {
-								if ($isMod || ($topic['Topic']['status'] && $user['id'] == $post['Post']['user_id'])) {
-									$links[] = $this->Html->link(__d('forum', 'Edit Topic'), array('controller' => 'topics', 'action' => 'edit', $topic['Topic']['slug'], (!empty($topic['Poll']['id']) ? 'poll' : '')));
+								if ($this->Common->hasAccess(AccessLevel::SUPER, $topic['Forum']['id']) || ($topic['Topic']['status'] && $user['User']['id'] == $post['Post']['user_id'])) {
+									$links[] = $this->Html->link(__d('forum', 'Edit Topic'), array('controller' => 'topics', 'action' => 'edit', $topic['Topic']['slug']));
 								}
 
-								if ($isMod) {
+								if ($this->Common->hasAccess(AccessLevel::SUPER, $topic['Forum']['id'])) {
 									$links[] = $this->Html->link(__d('forum', 'Delete Topic'), array('controller' => 'topics', 'action' => 'delete', $topic['Topic']['slug']), array('confirm' => __d('forum', 'Are you sure you want to delete?')));
 								}
 
 								$links[] = $this->Html->link(__d('forum', 'Report Topic'), array('controller' => 'topics', 'action' => 'report', $topic['Topic']['slug']));
 							} else {
-								if ($isMod || ($topic['Topic']['status'] && $user['id'] == $post['Post']['user_id'])) {
+								if ($user['User']['id'] == $post['Post']['user_id']) {
 									$links[] = $this->Html->link(__d('forum', 'Edit Post'), array('controller' => 'posts', 'action' => 'edit', $post['Post']['id']));
 									$links[] = $this->Html->link(__d('forum', 'Delete Post'), array('controller' => 'posts', 'action' => 'delete', $post['Post']['id']), array('confirm' => __d('forum', 'Are you sure you want to delete?')));
 								}
@@ -137,7 +130,7 @@ if (!empty($topic['Poll']['id'])) { ?>
 								$links[] = $this->Html->link(__d('forum', 'Report Post'), array('controller' => 'posts', 'action' => 'report', $post['Post']['id']));
 							}
 
-							if ($canReply) {
+							if ($topic['Topic']['status'] && $this->Common->hasAccess($topic['Forum']['accessReply'])) {
 								$links[] = $this->Html->link(__d('forum', 'Quote'), array('controller' => 'posts', 'action' => 'add', $topic['Topic']['slug'], $post['Post']['id']));
 							}
 
@@ -149,26 +142,29 @@ if (!empty($topic['Poll']['id'])) { ?>
 				</tr>
 				<tr>
 					<td valign="top" style="width: 25%">
-						<h4 class="username"><?php echo $this->Html->link($post['User'][$userFields['username']], $this->Forum->profileUrl($post['User'])); ?></h4>
+						<h4 class="username"><?php echo $this->Html->link($post['User'][$config['userMap']['username']], array('controller' => 'users', 'action' => 'profile', $post['User']['id'])); ?></h4>
 
-						<?php echo $this->Forum->avatar($post) ?>
-
-						<?php if (!empty($post['User'][$userFields['totalTopics']])) { ?>
-							<strong><?php echo __d('forum', 'Total Topics'); ?>:</strong> <?php echo number_format($post['User'][$userFields['totalTopics']]); ?><br>
+						<?php if (!empty($post['User']['Access'])) { ?>
+							<strong><?php echo $this->Common->highestAccessLevel($post['User']['Access']); ?></strong><br />
 						<?php } ?>
 
-						<?php if (!empty($post['User'][$userFields['totalPosts']])) { ?>
-							<strong><?php echo __d('forum', 'Total Posts'); ?>:</strong> <?php echo number_format($post['User'][$userFields['totalPosts']]); ?>
+						<?php if ($settings['enable_gravatar']) { ?>
+							<div class="avatar">
+								<?php echo $this->Common->gravatar($post['User'][$config['userMap']['email']], array('size' => 100)); ?>
+							</div>
 						<?php } ?>
+
+						<strong><?php echo __d('forum', 'Total Topics'); ?>:</strong> <?php echo number_format($post['User']['Profile']['totalTopics']); ?><br />
+						<strong><?php echo __d('forum', 'Total Posts'); ?>:</strong> <?php echo number_format($post['User']['Profile']['totalPosts']); ?>
 					</td>
 					<td valign="top">
 						<div class="post">
-							<?php echo $this->Decoda->parse($post['Post']['content']); ?>
+							<?php echo $post['Post']['contentHtml']; ?>
 						</div>
 
-						<?php if (!empty($post['User'][$userFields['signature']])) { ?>
+						<?php if (!empty($post['User']['Profile']['signatureHtml'])) { ?>
 							<div class="signature">
-								<?php echo $this->Decoda->parse($post['User'][$userFields['signature']]); ?>
+								<?php echo $post['User']['Profile']['signatureHtml']; ?>
 							</div>
 						<?php } ?>
 					</td>
@@ -186,7 +182,7 @@ if (!empty($topic['Poll']['id'])) { ?>
 	'topic' => $topic
 ));
 
-if ($settings['enableQuickReply'] && $canReply) { ?>
+if ($user && $topic['Topic']['status'] && $settings['enable_quick_reply'] && $this->Common->hasAccess($topic['Forum']['accessReply'])) { ?>
 
 	<div id="quickReply" class="container">
 		<div class="containerHeader">
@@ -202,13 +198,14 @@ if ($settings['enableQuickReply'] && $canReply) { ?>
 				<tbody>
 					<tr>
 						<td style="width: 25%">
-							<strong><?php echo $this->Form->label('content', __d('forum', 'Message') . ':'); ?></strong><br><br>
+							<strong><?php echo $this->Form->label('content', __d('forum', 'Message') . ':'); ?></strong><br /><br />
 
-							<?php echo $this->Html->link(__d('forum', 'Advanced Reply'), array('controller' => 'posts', 'action' => 'add', $topic['Topic']['slug'])); ?><br>
+							<?php echo $this->Html->link(__d('forum', 'Advanced Reply'), array('controller' => 'posts', 'action' => 'add', $topic['Topic']['slug'])); ?><br />
 							<?php echo __d('forum', 'BBCode Enabled'); ?>
 						</td>
 						<td>
 							<?php echo $this->Form->input('content', array(
+								'after' => '<span class="inputText" style="margin-left: 0; padding: 0;">[b], [u], [i], [s], [img], [url], [email], [color], [size], [left], [center], [right], [justify], [list], [olist], [li], [quote], [code]</span>',
 								'type' => 'textarea',
 								'rows' => 5,
 								'style' => 'width: 99%',
@@ -217,7 +214,7 @@ if ($settings['enableQuickReply'] && $canReply) { ?>
 								'label' => false
 							)); ?>
 
-							<?php echo $this->element('decoda', array('id' => 'PostContent')); ?>
+							<?php echo $this->element('markitup', array('textarea' => 'PostContent')); ?>
 						</td>
 					</tr>
 					<tr class="headRow">

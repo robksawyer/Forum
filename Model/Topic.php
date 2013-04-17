@@ -1,14 +1,19 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - Topic
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
 
 class Topic extends ForumAppModel {
 
+	public $recursive = -1;
+	
 	/**
 	 * Type constants.
 	 */
@@ -20,6 +25,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Behaviors
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $actsAs = array(
@@ -31,12 +37,12 @@ class Topic extends ForumAppModel {
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
 		'User' => array(
-			'className' => USER_MODEL,
-			'counterCache' => true
+			'className' => FORUM_USER
 		),
 		'Forum' => array(
 			'className' => 'Forum.Forum',
@@ -51,7 +57,7 @@ class Topic extends ForumAppModel {
 			'foreignKey' => 'lastPost_id'
 		),
 		'LastUser' => array(
-			'className' => USER_MODEL,
+			'className' => FORUM_USER,
 			'foreignKey' => 'lastUser_id'
 		)
 	);
@@ -59,6 +65,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Has one.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $hasOne = array(
@@ -71,19 +78,18 @@ class Topic extends ForumAppModel {
 	/**
 	 * Has many.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $hasMany = array(
 		'Post' => array(
 			'className' => 'Forum.Post',
-			'limit' => 100,
-			'order' => array('Post.created' => 'DESC'),
 			'exclusive' => true,
 			'dependent' => true,
+			'order' => array('Post.created' => 'DESC'),
 		),
 		'Subscription' => array(
 			'className' => 'Forum.Subscription',
-			'limit' => 100,
 			'exclusive' => true,
 			'dependent' => true
 		)
@@ -92,49 +98,34 @@ class Topic extends ForumAppModel {
 	/**
 	 * Validation.
 	 *
+	 * @access public
 	 * @var array
 	 */
-	public $validations = array(
-		'default' => array(
-			'title' => array(
-				'rule' => 'notEmpty'
+	public $validate = array(
+		'title' => 'notEmpty',
+		'forum_id' => 'notEmpty',
+		'expires' => array(
+			'rule' => 'numeric',
+			'message' => 'Expiration must be a numerical value for days',
+			'allowEmpty' => true
+		),
+		'options' => array(
+			'checkOptions' => array(
+				'rule' => array('checkOptions'),
+				'message' => 'You must supply a minimum of 2 options and a max of 10'
 			),
-			'forum_id' => array(
+			'notEmpty' => array(
 				'rule' => 'notEmpty',
-			),
-			'user_id' => array(
-				'rule' => 'notEmpty',
-			),
-			'status' => array(
-				'rule' => 'notEmpty',
-			),
-			'type' => array(
-				'rule' => 'notEmpty',
-			),
-			'expires' => array(
-				'rule' => 'numeric',
-				'message' => 'Expiration must be a numerical value for days',
-				'allowEmpty' => true
-			),
-			'options' => array(
-				'checkOptions' => array(
-					'rule' => array('checkOptions'),
-					'message' => 'You must supply a minimum of 2 options and a max of 10'
-				),
-				'notEmpty' => array(
-					'rule' => 'notEmpty',
-					'message' => 'Please supply some answer options for your poll'
-				)
-			),
-			'content' => array(
-				'rule' => 'notEmpty'
+				'message' => 'Please supply some answer options for your poll'
 			)
-		)
+		),
+		'content' => 'notEmpty'
 	);
 
 	/**
 	 * Enum.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $enum = array(
@@ -147,32 +138,23 @@ class Topic extends ForumAppModel {
 	);
 
 	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-comment'
-	);
-
-	/**
 	 * Validate and add a topic.
 	 *
+	 * @access public
 	 * @param array $data
-	 * @return bool|int
+	 * @return boolean|int
 	 */
-	public function addTopic($data) {
+	public function add($data) {
 		$this->set($data);
 
 		if ($this->validates()) {
 			$isAdmin = $this->Session->read('Forum.isAdmin');
-			$settings = Configure::read('Forum.settings');
 
-			if (($secondsLeft = $this->checkFlooding($settings['topicFloodInterval'])) > 0 && !$isAdmin) {
-				return $this->invalid('title', 'You must wait %s more second(s) till you can post a topic', $secondsLeft);
+			if (($secondsLeft = $this->checkFlooding($this->settings['topic_flood_interval'])) > 0 && !$isAdmin) {
+				return $this->invalidate('title', 'You must wait %s more second(s) till you can post a topic', $secondsLeft);
 
-			} else if ($this->checkHourly($settings['topicsPerHour']) && !$isAdmin) {
-				return $this->invalid('title', 'You are only allowed to post %s topic(s) per hour', $settings['topicsPerHour']);
+			} else if ($this->checkHourly($this->settings['topics_per_hour']) && !$isAdmin) {
+				return $this->invalidate('title', 'You are only allowed to post %s topic(s) per hour', $this->settings['topics_per_hour']);
 
 			} else {
 				$this->create();
@@ -198,7 +180,7 @@ class Topic extends ForumAppModel {
 				}
 
 				// Subscribe
-				if ($settings['autoSubscribeSelf']) {
+				if ($this->settings['auto_subscribe_self']) {
 					$this->Subscription->subscribeToTopic($data['user_id'], $data['topic_id']);
 				}
 
@@ -212,8 +194,9 @@ class Topic extends ForumAppModel {
 	/**
 	 * Check the posting flood interval.
 	 *
+	 * @access public
 	 * @param int $interval
-	 * @return bool|int
+	 * @return boolean|int
 	 */
 	public function checkFlooding($interval) {
 		if ($topics = $this->Session->read('Forum.topics')) {
@@ -230,8 +213,9 @@ class Topic extends ForumAppModel {
 	/**
 	 * Check the hourly posting.
 	 *
+	 * @access public
 	 * @param int $max
-	 * @return bool
+	 * @return boolean
 	 */
 	public function checkHourly($max) {
 		$pastHour = strtotime('-1 hour');
@@ -256,8 +240,9 @@ class Topic extends ForumAppModel {
 	/**
 	 * Check to make sure the poll is valid.
 	 *
+	 * @access public
 	 * @param array $data
-	 * @return bool
+	 * @return boolean
 	 */
 	public function checkOptions($data) {
 		$data = array_values($data);
@@ -278,20 +263,9 @@ class Topic extends ForumAppModel {
 	}
 
 	/**
-	 * Close a topic.
-	 *
-	 * @param int $id
-	 * @return bool
-	 */
-	public function close($id) {
-		$this->id = $id;
-
-		return $this->saveField('status', self::CLOSED);
-	}
-
-	/**
 	 * Finds difference in days between dates.
 	 *
+	 * @access public
 	 * @param int $start
 	 * @param int $finish
 	 * @return int
@@ -314,11 +288,12 @@ class Topic extends ForumAppModel {
 	/**
 	 * Robust method for saving all topic data.
 	 *
+	 * @access public
 	 * @param int $id
 	 * @param array $topic
-	 * @return bool
+	 * @return boolean
 	 */
-	public function editTopic($id, $topic) {
+	public function edit($id, $topic) {
 		if ($topic) {
 			foreach ($topic as $model => $data) {
 				if ($model === 'Topic') {
@@ -327,7 +302,7 @@ class Topic extends ForumAppModel {
 
 				} else if ($model === 'FirstPost') {
 					$this->Post->id = $data['id'];
-					$this->Post->save($data, false, array('content'));
+					$this->Post->save($data, false, array('content', 'contentHtml'));
 
 				} else if ($model === 'Poll') {
 					$data['expires'] = !empty($data['expires']) ? date('Y-m-d H:i:s', strtotime('+' . $data['expires'] . ' days')) : null;
@@ -342,7 +317,7 @@ class Topic extends ForumAppModel {
 
 							} else if ($option['option'] !== '') {
 								$this->Poll->PollOption->id = $option['id'];
-								$this->Poll->PollOption->save($option, false, array('option', 'poll_vote_count'));
+								$this->Poll->PollOption->save($option, false, array('option', 'vote_count'));
 							}
 						}
 					}
@@ -356,6 +331,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Get all info for reading a topic.
 	 *
+	 * @access public
 	 * @param string $slug
 	 * @return array
 	 */
@@ -380,6 +356,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Get the latest topics.
 	 *
+	 * @access public
 	 * @param int $limit
 	 * @return array
 	 */
@@ -396,6 +373,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Get the latest topics by a user.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $limit
 	 * @return array
@@ -412,6 +390,7 @@ class Topic extends ForumAppModel {
 	/**
 	 * Get all high level topics within a forum.
 	 *
+	 * @access public
 	 * @param int $forum_id
 	 * @return array
 	 */
@@ -435,26 +414,23 @@ class Topic extends ForumAppModel {
 	/**
 	 * Increase the view count.
 	 *
+	 * @access public
 	 * @param int $id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function increaseViews($id) {
-		return $this->updateAll(
-			array('Topic.view_count' => 'Topic.view_count + 1'),
-			array('Topic.id' => $id)
-		);
+		return $this->query('UPDATE `' . $this->tablePrefix . 'topics` AS `Topic` SET `Topic`.`view_count` = `Topic`.`view_count` + 1 WHERE `Topic`.`id` = ' . (int) $id);
 	}
 
 	/**
 	 * Move all topics to a new forum.
 	 *
+	 * @access public
 	 * @param int $start_id
 	 * @param int $moved_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function moveAll($start_id, $moved_id) {
-		$this->Post->moveAll($start_id, $moved_id);
-
 		return $this->updateAll(
 			array('Topic.forum_id' => $moved_id),
 			array('Topic.forum_id' => $start_id)
@@ -462,68 +438,37 @@ class Topic extends ForumAppModel {
 	}
 
 	/**
-	 * Open a topic.
-	 *
-	 * @param int $id
-	 * @return bool
-	 */
-	public function open($id) {
-		$this->id = $id;
-
-		return $this->saveField('status', self::OPEN);
-	}
-
-	/**
-	 * Sticky a topic.
-	 *
-	 * @param int $id
-	 * @return bool
-	 */
-	public function sticky($id) {
-		$this->id = $id;
-
-		return $this->saveField('type', self::STICKY);
-	}
-
-	/**
-	 * Unsticky a topic.
-	 *
-	 * @param int $id
-	 * @return bool
-	 */
-	public function unsticky($id) {
-		$this->id = $id;
-
-		return $this->saveField('type', self::NORMAL);
-	}
-
-	/**
 	 * Parse the HTML version.
 	 *
+	 * @access public
 	 * @param array $options
-	 * @return bool
+	 * @return boolean
 	 */
-	public function beforeSave($options = array()) {
-		return $this->validateDecoda('Topic');
+	public function beforeSave($options) {
+		if (isset($this->data['Topic']['content'])) {
+			return $this->validateDecoda('Topic');
+		}
+
+		return true;
 	}
 
 	/**
 	 * After find.
 	 *
+	 * @access public
 	 * @param array $results
-	 * @param bool $primary
+	 * @param boolean $primary
 	 * @return array
 	 */
 	public function afterFind($results, $primary = false) {
 		if ($results) {
-			$settings = Configure::read('Forum.settings');
-			$postsPerPage = $settings['postsPerPage'];
-			$autoLock = $settings['topicDaysTillAutolock'];
+			$postsPerPage = $this->settings['posts_per_page'];
+			$autoLock = $this->settings['days_till_autolock'];
 
 			if (isset($results[0])) {
 				foreach ($results as &$result) {
 					if (isset($result['Topic'])) {
-						$lock = isset($result['Forum']) ? $result['Forum']['autoLock'] : false;
+						$lock = isset($result['Forum']) ? $result['Forum']['settingAutoLock'] : false;
 						$lastTime = null;
 
 						if (isset($result['LastPost'])) {
@@ -537,7 +482,7 @@ class Topic extends ForumAppModel {
 						}
 
 						if ($lock && $lastTime && (strtotime($lastTime) < strtotime('-' . $autoLock . ' days'))) {
-							$result['Topic']['status'] = self::OPEN;
+							$result['Topic']['status'] = 1;
 						}
 					}
 				}
@@ -547,16 +492,6 @@ class Topic extends ForumAppModel {
 		}
 
 		return $results;
-	}
-
-	/**
-	 * Null associations.
-	 */
-	public function afterDelete() {
-		$this->Forum->updateAll(
-			array('Forum.lastTopic_id' => null, 'Forum.lastPost_id' => null),
-			array('Forum.lastTopic_id' => $this->id)
-		);
 	}
 
 }

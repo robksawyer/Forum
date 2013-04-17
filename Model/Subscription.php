@@ -1,8 +1,11 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - Subscription
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
@@ -12,11 +15,12 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
 		'User' => array(
-			'className' => USER_MODEL
+			'className' => FORUM_USER
 		),
 		'Forum' => array(
 			'className' => 'Forum.Forum',
@@ -29,30 +33,9 @@ class Subscription extends ForumAppModel {
 	);
 
 	/**
-	 * Validation.
-	 *
-	 * @var array
-	 */
-	public $validations = array(
-		'default' => array(
-			'user_id' => array(
-				'rule' => 'notEmpty',
-			)
-		)
-	);
-
-	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-pushpin'
-	);
-
-	/**
 	 * Get all subscribed forums from a user.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $limit
 	 * @return array
@@ -71,6 +54,7 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Get all subscribed topics from a user.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $limit
 	 * @return array
@@ -91,6 +75,7 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Determine if the user is already subscribed to a forum.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $forum_id
 	 * @return int
@@ -107,6 +92,7 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Determine if the user is already subscribed to a topic.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $topic_id
 	 * @return int
@@ -123,9 +109,10 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Subscribe a user to a forum.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $forum_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function subscribeToForum($user_id, $forum_id) {
 		$forum = $this->Forum->getById($forum_id);
@@ -145,9 +132,10 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Subscribe a user to a topic.
 	 *
+	 * @access public
 	 * @param int $user_id
 	 * @param int $topic_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function subscribeToTopic($user_id, $topic_id) {
 		$topic = $this->Topic->getById($topic_id);
@@ -167,8 +155,9 @@ class Subscription extends ForumAppModel {
 	/**
 	 * Unsubscribe a user subscription.
 	 *
+	 * @access public
 	 * @param int $id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function unsubscribe($id) {
 		return $this->delete($id, true);

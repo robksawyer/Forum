@@ -1,21 +1,21 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - SearchController
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppController', 'Forum.Controller');
-App::uses('Forum', 'Forum.Model');
 
-/**
- * @property Topic $Topic
- */
 class SearchController extends ForumAppController {
 
 	/**
 	 * Models.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $uses = array('Forum.Topic');
@@ -23,6 +23,7 @@ class SearchController extends ForumAppController {
 	/**
 	 * Pagination.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $paginate = array(
@@ -39,6 +40,7 @@ class SearchController extends ForumAppController {
 	 */
 	public function index($type = '') {
 		$searching = false;
+		$forums = $this->Topic->Forum->getGroupedHierarchy('accessRead');
 		$orderBy = array(
 			'LastPost.created' => __d('forum', 'Last post time'),
 			'Topic.created' => __d('forum', 'Topic created time'),
@@ -69,24 +71,25 @@ class SearchController extends ForumAppController {
 			}
 
 			if (!empty($this->request->data['Topic']['byUser'])) {
-				$this->paginate['Topic']['conditions']['User.' . $this->config['User']['fieldMap']['username'] . ' LIKE'] = '%' . Sanitize::clean($this->request->data['Topic']['byUser']) . '%';
+				$this->paginate['Topic']['conditions']['User.' . $this->config['userMap']['username'] . ' LIKE'] = '%' . Sanitize::clean($this->request->data['Topic']['byUser']) . '%';
 			}
 
 			if (empty($this->request->data['Topic']['orderBy']) || !isset($orderBy[$this->request->data['Topic']['orderBy']])) {
 				$this->request->data['Topic']['orderBy'] = 'LastPost.created';
 			}
 
-			$this->paginate['Topic']['conditions']['Forum.accessRead'] = Forum::YES;
+			$this->paginate['Topic']['conditions']['Forum.accessRead <='] = $this->Session->read('Forum.access');
 			$this->paginate['Topic']['order'] = array($this->request->data['Topic']['orderBy'] => 'DESC');
-			$this->paginate['Topic']['limit'] = $this->settings['topicsPerPage'];
+			$this->paginate['Topic']['limit'] = $this->settings['topics_per_page'];
 
 			$this->set('topics', $this->paginate('Topic'));
 		}
 
+		$this->ForumToolbar->pageTitle(__d('forum', 'Search'));
 		$this->set('menuTab', 'search');
 		$this->set('searching', $searching);
 		$this->set('orderBy', $orderBy);
-		$this->set('forums', $this->Topic->Forum->getHierarchy());
+		$this->set('forums', $forums);
 	}
 
 	/**
@@ -114,7 +117,7 @@ class SearchController extends ForumAppController {
 	public function beforeFilter() {
 		parent::beforeFilter();
 
-		$this->Auth->allow();
+		$this->Auth->allow('*');
 	}
 
 }

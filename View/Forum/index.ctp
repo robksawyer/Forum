@@ -1,6 +1,6 @@
 <?php
 
-$this->Breadcrumb->add(__d('forum', 'Forums'), array('action' => 'index'));
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
 
 if ($forums) {
 	foreach ($forums as $forum) { ?>
@@ -33,7 +33,7 @@ if ($forums) {
 			} else { ?>
 
 				<tr>
-					<td colspan="5" class="empty"><?php echo __d('forum', 'There are no categories within this forum'); ?></td>
+					<td colspan="5" class="empty"><?php echo __d('forum', 'There are no categories within this forum.'); ?></td>
 				</tr>
 
 			<?php } ?>
@@ -45,8 +45,6 @@ if ($forums) {
 
 <?php } } ?>
 
-<?php echo $this->element('login'); ?>
-
 <div class="statistics">
 	<div class="totalStats">
 		<strong><?php echo __d('forum', 'Statistics'); ?>:</strong> <?php printf(__d('forum', '%d topics, %d posts, and %d users'), $totalTopics, $totalPosts, $totalUsers); ?>
@@ -54,7 +52,7 @@ if ($forums) {
 
     <?php if ($newestUser) { ?>
 		<div class="newestUser">
-			<strong><?php echo __d('forum', 'Newest User'); ?>:</strong> <?php echo $this->Html->link($newestUser['User'][$userFields['username']], $this->Forum->profileUrl($newestUser['User'])); ?>
+			<strong><?php echo __d('forum', 'Newest User'); ?>:</strong> <?php echo $this->Html->link($newestUser['User'][$config['userMap']['username']], array('controller' => 'users', 'action' => 'profile', $newestUser['User']['id'])); ?>
 		</div>
    	<?php }
 
@@ -62,7 +60,7 @@ if ($forums) {
 		$onlineUsers = array();
 
 		foreach ($whosOnline as $online) {
-			$onlineUsers[] = $this->Html->link($online['User'][$userFields['username']], $this->Forum->profileUrl($online['User']));
+			$onlineUsers[] = $this->Html->link($online['User'][$config['userMap']['username']], array('controller' => 'users', 'action' => 'profile', $online['User']['id']));
 		} ?>
 
 		<div class="whosOnline">

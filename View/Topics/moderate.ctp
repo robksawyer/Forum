@@ -1,12 +1,13 @@
 <?php
 
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+
 if (!empty($topic['Forum']['Parent']['slug'])) {
-	$this->Breadcrumb->add($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
+	$this->Html->addCrumb($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
-$this->Breadcrumb->add($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug']));
-$this->Breadcrumb->add(__d('forum', 'Moderate'), array('controller' => 'topics', 'action' => 'moderate', $topic['Topic']['slug'])); ?>
+$this->Html->addCrumb($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
+$this->Html->addCrumb($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug'])); ?>
 
 <div class="controls float-right">
 	<?php
@@ -27,7 +28,7 @@ $this->Breadcrumb->add(__d('forum', 'Moderate'), array('controller' => 'topics',
 		<table class="table topics">
 			<thead>
 				<tr>
-					<th><input type="checkbox" onclick="Forum.toggleCheckboxes(this, 'Post', 'items');"></th>
+					<th><input type="checkbox" onclick="Forum.toggleCheckboxes(this, 'Post', 'items');" /></th>
 					<th><?php echo __d('forum', 'User'); ?></th>
 					<th><?php echo __d('forum', 'Post'); ?></th>
 					<th><?php echo __d('forum', 'Date'); ?></th>
@@ -42,17 +43,17 @@ $this->Breadcrumb->add(__d('forum', 'Moderate'), array('controller' => 'topics',
 						<?php if ($post['Post']['id'] == $topic['Topic']['firstPost_id']) { ?>
 							<em class="gray">X</em>
 						<?php } else { ?>
-							<input type="checkbox" name="data[Post][items][]" value="<?php echo $post['Post']['id']; ?>">
+							<input type="checkbox" name="data[Post][items][]" value="<?php echo $post['Post']['id']; ?>" />
 						<?php } ?>
 					</td>
 					<td>
-						<?php echo $this->Html->link($post['User'][$userFields['username']], $this->Forum->profileUrl($post['User'])); ?>
+						<?php echo $this->Html->link($post['User'][$config['userMap']['username']], array('controller' => 'users', 'action' => 'profile', $post['User']['id'])); ?>
 					</td>
 					<td>
-						<?php echo $this->Text->truncate($this->Decoda->strip($post['Post']['content'], 100)); ?>
+						<?php echo str_replace("\n", '', $this->Text->truncate($post['Post']['content'], 100)); ?>
 					</td>
 					<td class="created">
-						<?php echo $this->Time->niceShort($post['Post']['created'], $this->Forum->timezone()); ?>
+						<?php echo $this->Time->niceShort($post['Post']['created'], $this->Common->timezone()); ?>
 					</td>
 				</tr>
 

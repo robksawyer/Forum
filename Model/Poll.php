@@ -1,8 +1,11 @@
 <?php
 /**
- * @copyright	Copyright 2006-2013, Miles Johnson - http://milesj.me
- * @license		http://opensource.org/licenses/mit-license.php - Licensed under the MIT License
- * @link		http://milesj.me/code/cakephp/forum
+ * Forum - Poll
+ *
+ * @author      Miles Johnson - http://milesj.me
+ * @copyright   Copyright 2006-2011, Miles Johnson, Inc.
+ * @license     http://opensource.org/licenses/mit-license.php - Licensed under The MIT License
+ * @link        http://milesj.me/code/cakephp/forum
  */
 
 App::uses('ForumAppModel', 'Forum.Model');
@@ -12,6 +15,7 @@ class Poll extends ForumAppModel {
 	/**
 	 * Belongs to.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $belongsTo = array(
@@ -23,6 +27,7 @@ class Poll extends ForumAppModel {
 	/**
 	 * Has many.
 	 *
+	 * @access public
 	 * @var array
 	 */
 	public $hasMany = array(
@@ -34,39 +39,17 @@ class Poll extends ForumAppModel {
 		),
 		'PollVote' => array(
 			'className' => 'Forum.PollVote',
-			'limit' => 100,
 			'exclusive' => true,
 			'dependent' => true
 		)
 	);
 
 	/**
-	 * Validation.
-	 *
-	 * @var array
-	 */
-	public $validations = array(
-		'default' => array(
-			'topic_id' => array(
-				'rule' => 'notEmpty'
-			)
-		)
-	);
-
-	/**
-	 * Admin settings.
-	 *
-	 * @var array
-	 */
-	public $admin = array(
-		'iconClass' => 'icon-bar-chart'
-	);
-
-	/**
 	 * Add a poll attached to a topic.
 	 *
+	 * @access public
 	 * @param array $data
-	 * @return bool
+	 * @return boolean
 	 */
 	public function addPoll($data) {
 		$poll = array(
@@ -79,12 +62,12 @@ class Poll extends ForumAppModel {
 			$options = explode("\n", $data['options']);
 			$results = array(
 				'poll_id' => $poll_id,
-				'poll_vote_count' => 0
+				'vote_count' => 0
 			);
 
 			foreach ($options as $opt) {
-				if ($opt = trim($opt)) {
-					$results['option'] = $opt;
+				if ($opt) {
+					$results['option'] = trim($opt);
 
 					$this->PollOption->create();
 					$this->PollOption->save($results, false, array_keys($results));
@@ -100,21 +83,22 @@ class Poll extends ForumAppModel {
 	/**
 	 * Process the totals and percentages.
 	 *
+	 * @access public
 	 * @param array $poll
 	 * @return array
 	 */
 	public function process($poll) {
-		$user_id = $this->Session->read(AuthComponent::$sessionKey . '.id');
+		$user_id = $this->Session->read('Auth.User.id');
 
 		if ($poll) {
 			$totalVotes = 0;
 
 			foreach ($poll['PollOption'] as $option) {
-				$totalVotes = $totalVotes + $option['poll_vote_count'];
+				$totalVotes = $totalVotes + $option['vote_count'];
 			}
 
 			foreach ($poll['PollOption'] as &$option) {
-				$option['percentage'] = ($totalVotes > 0) ? round(($option['poll_vote_count'] / $totalVotes) * 100) : 0;
+				$option['percentage'] = ($totalVotes > 0) ? round(($option['vote_count'] / $totalVotes) * 100) : 0;
 			}
 
 			$poll['hasVoted'] = $this->PollVote->hasVoted($user_id, $poll['id']);
@@ -127,10 +111,11 @@ class Poll extends ForumAppModel {
 	/**
 	 * Vote in a poll.
 	 *
+	 * @access public
 	 * @param int $poll_id
 	 * @param int $option_id
 	 * @param int $user_id
-	 * @return bool
+	 * @return boolean
 	 */
 	public function vote($poll_id, $option_id, $user_id) {
 		$poll = $this->find('first', array(
@@ -143,7 +128,10 @@ class Poll extends ForumAppModel {
 				return false;
 			}
 
-			$this->PollVote->addVoter($poll_id, $option_id, $user_id);
+			if (!$this->PollVote->hasVoted($user_id, $poll_id)) {
+				$this->PollOption->addVote($option_id);
+				$this->PollVote->addVoter($poll_id, $option_id, $user_id);
+			}
 		}
 
 		return true;

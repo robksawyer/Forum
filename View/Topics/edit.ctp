@@ -1,12 +1,13 @@
 <?php
 
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+
 if (!empty($topic['Forum']['Parent']['slug'])) {
-	$this->Breadcrumb->add($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
+	$this->Html->addCrumb($topic['Forum']['Parent']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['Parent']['slug']));
 }
 
-$this->Breadcrumb->add($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
-$this->Breadcrumb->add($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug']));
-$this->Breadcrumb->add(__d('forum', 'Edit Topic'), array('controller' => 'topics', 'action' => 'edit', $topic['Topic']['slug'])); ?>
+$this->Html->addCrumb($topic['Forum']['title'], array('controller' => 'stations', 'action' => 'view', $topic['Forum']['slug']));
+$this->Html->addCrumb($topic['Topic']['title'], array('controller' => 'topics', 'action' => 'view', $topic['Topic']['slug'])); ?>
 
 <div class="title">
 	<h2><?php echo __d('forum', 'Edit Topic'); ?></h2>
@@ -18,10 +19,10 @@ $this->Breadcrumb->add(__d('forum', 'Edit Topic'), array('controller' => 'topics
 	<div class="containerContent">
 		<?php echo $this->Form->input('title', array('label' => __d('forum', 'Title')));
 
-		if ($this->Forum->isMod($topic['Forum']['id'])) {
+		if ($this->Common->hasAccess(AccessLevel::SUPER, $topic['Forum']['id'])) {
 			echo $this->Form->input('forum_id', array('label' => __d('forum', 'Forum'), 'options' => $forums, 'empty' => '-- ' . __d('forum', 'Select a Forum') . ' --'));
-			echo $this->Form->input('status', array('label' => __d('forum', 'Status'), 'options' => $this->Utility->enum('Forum.Topic', 'status')));
-			echo $this->Form->input('type', array('options' => $this->Utility->enum('Forum.Topic', 'type'), 'label' => __d('forum', 'Type')));
+			echo $this->Form->input('status', array('label' => __d('forum', 'Status'), 'options' => $this->Common->options('topicStatus')));
+			echo $this->Form->input('type', array('options' => $this->Common->options('topicTypes'), 'label' => __d('forum', 'Type')));
 		} else {
 			echo $this->Form->input('forum_id', array('type' => 'hidden'));
 		}
@@ -61,12 +62,13 @@ $this->Breadcrumb->add(__d('forum', 'Edit Topic'), array('controller' => 'topics
 		echo $this->Form->input('FirstPost.id', array('type' => 'hidden'));
 
 		echo $this->Form->input('FirstPost.content', array(
+			'after' => '<span class="inputText">[b], [u], [i], [s], [img], [url], [email], [color], [size], [left], [center], [right], [justify], [list], [olist], [li], [quote], [code]</span>',
 			'label' => __d('forum', 'Content'),
 			'type' => 'textarea',
 			'rows' => 15
 		));
 
-		echo $this->element('decoda', array('id' => 'FirstPostContent')); ?>
+		echo $this->element('markitup', array('textarea' => 'FirstPostContent')); ?>
 	</div>
 </div>
 

@@ -1,6 +1,7 @@
 <?php
 
-$this->Breadcrumb->add(__d('forum', 'Search'), array('controller' => 'search', 'action' => 'index')); ?>
+$this->Html->addCrumb($settings['site_name'], array('controller' => 'forum', 'action' => 'index'));
+$this->Html->addCrumb(__d('forum', 'Search'), array('controller' => 'search', 'action' => 'index')); ?>
 
 <div class="title">
 	<h2><?php echo __d('forum', 'Search'); ?></h2>
@@ -45,7 +46,7 @@ if ($searching) { ?>
 				<tr>
 					<th colspan="2"><?php echo $this->Paginator->sort('Topic.title', __d('forum', 'Topic')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.forum_id', __d('forum', 'Forum')); ?></th>
-					<th><?php echo $this->Paginator->sort('User.' . $userFields['username'], __d('forum', 'Author')); ?></th>
+					<th><?php echo $this->Paginator->sort('User.' . $config['userMap']['username'], __d('forum', 'Author')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.created', __d('forum', 'Created')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.post_count', __d('forum', 'Posts')); ?></th>
 					<th><?php echo $this->Paginator->sort('Topic.view_count', __d('forum', 'Views')); ?></th>
@@ -57,7 +58,7 @@ if ($searching) { ?>
 			<?php if (!$topics) { ?>
 
 				<tr>
-					<td colspan="8" class="empty"><?php echo __d('forum', 'No results were found, please refine your search criteria'); ?></td>
+					<td colspan="8" class="empty"><?php echo __d('forum', 'No results were found, please refine your search criteria.'); ?></td>
 				</tr>
 
 			<?php } else {
