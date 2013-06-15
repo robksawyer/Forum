@@ -57,7 +57,11 @@ class ForumAppModel extends AppModel {
 	public $actsAs = array(
 		'Containable',
 		'Utility.Cacheable' => array(
-			'cacheConfig' => 'forum',
+			'engine' => 'MemcacheSASL',
+			'user' => MEMCACHIER_USERNAME,
+			'password' => MEMCACHIER_PASSWORD,
+			'servers' => array(MEMCACHIER_SERVERS),
+			'cacheConfig' => 'default',
 			'appendKey' => false,
 			'expires' => '+1 minute',
 			'events' => array(
