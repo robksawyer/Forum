@@ -87,8 +87,7 @@ class SubscriptionShell extends Shell {
 			return;
 		}
 
-		$email = new CakeEmail();
-		$email->config('postmark');
+		$email = new CakeEmail('postmark');
 		//$email->transport('Debug');
 		$email->subject(sprintf(__d('forum', '%s [Subscriptions]'), $this->settings['site_name']));
 		$email->from($this->settings['site_email']);
